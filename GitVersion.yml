@@ -1,0 +1,21 @@
+mode: ContinuousDelivery
+branches:
+  main:
+    regex: ^master$|^main$
+    tag: ''
+    increment: Patch
+    prevent-increment-of-merged-branch-version: true
+    track-merge-target: false
+  develop:
+    regex: ^develop$
+    tag: beta
+    increment: Minor
+    prevent-increment-of-merged-branch-version: false
+    track-merge-target: true
+  feature:
+    regex: ^features?[/-]
+    tag: alpha
+    increment: Inherit
+    source-branches: [ 'develop', 'main', 'master' ]
+ignore:
+  sha: []
