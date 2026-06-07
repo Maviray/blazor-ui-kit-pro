@@ -47,4 +47,9 @@
 		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
 		<None Include="..\..\LICENSE.txt" Pack="true" PackagePath="\" />
 	</ItemGroup>
+
+
+	<ItemGroup>
+	  <ProjectReference Include="..\Maviray.Blazor.Components.Pro.Grid.Persistence\Maviray.Blazor.Components.Pro.Grid.Persistence.csproj" />
+	</ItemGroup>
 </Project>

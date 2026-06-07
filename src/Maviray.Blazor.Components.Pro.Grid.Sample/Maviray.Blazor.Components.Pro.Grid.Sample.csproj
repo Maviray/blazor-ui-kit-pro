@@ -7,4 +7,8 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Maviray.Blazor.Components.Pro.Grid.UI\Maviray.Blazor.Components.Pro.Grid.UI.csproj" />
+  </ItemGroup>
+
 </Project>

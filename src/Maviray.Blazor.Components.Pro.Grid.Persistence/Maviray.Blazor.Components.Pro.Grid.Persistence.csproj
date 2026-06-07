@@ -29,4 +29,8 @@
 		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
 		<None Include="..\..\LICENSE.txt" Pack="true" PackagePath="\" />
 	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\Maviray.Blazor.Components.Pro.Core\Maviray.Blazor.Components.Pro.Core.csproj" />
+	</ItemGroup>
 </Project>
