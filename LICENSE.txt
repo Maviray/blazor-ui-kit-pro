@@ -1,0 +1,19 @@
+Copyright (c) 2026 Maviray
+
+2. License Grant
+A paid license must be obtained from the copyright holder
+before any use of this software. The terms of such license
+shall be defined in a separate written agreement.
+
+3. Unauthorized Use
+Any use of this software without a valid paid license is strictly prohibited.
+
+4. No Warranty
+This software is provided "as is", without warranty of any kind,
+express or implied, including but not limited to the warranties of
+merchantability, fitness for a particular purpose and noninfringement.
+
+5. Limitation of Liability
+In no event shall the authors or copyright holders be liable
+for any claim, damages or other liability arising from the use
+or inability to use the software.
