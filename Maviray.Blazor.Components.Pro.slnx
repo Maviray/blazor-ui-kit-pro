@@ -1,6 +1,6 @@
 <Solution>
   <Project Path="src/Maviray.Blazor.Components.Pro.Core/Maviray.Blazor.Components.Pro.Core.csproj" Id="3624ea4f-890c-4d15-8cd7-fa74c6185729" />
-  <Project Path="src/Maviray.Blazor.Components.Pro.Grid.Persistence/Maviray.Blazor.Components.Pro.Grid.Persistence.csproj" Id="d1dfc80e-4a89-40a9-a8de-2e25fc731e46" />
+  <Project Path="src/Maviray.Blazor.Components.Pro.Grid.EntityFramework/Maviray.Blazor.Components.Pro.Grid.EntityFramework.csproj" Id="e56468de-97e3-4178-9d6e-6f54bb0c2c35" />
   <Project Path="src/Maviray.Blazor.Components.Pro.Grid.Sample/Maviray.Blazor.Components.Pro.Grid.Sample.csproj" Id="0b90d85c-f1b4-4414-a792-303bb4e01d15" />
   <Project Path="src/Maviray.Blazor.Components.Pro.Grid.UI/Maviray.Blazor.Components.Pro.Grid.UI.csproj" Id="d5a8bbe4-63a8-41eb-ad9f-f659ada903bf" />
 </Solution>

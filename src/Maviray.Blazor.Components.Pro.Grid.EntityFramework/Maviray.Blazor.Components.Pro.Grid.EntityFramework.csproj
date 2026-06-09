@@ -6,13 +6,13 @@
     <Nullable>enable</Nullable>
 
 	  <!-- NuGet Package Properties -->
-	  <PackageId>Maviray.Blazor.Components.Pro.Grid.Persistence</PackageId>
+	  <PackageId>Maviray.Blazor.Components.Pro.Grid.EntityFramework</PackageId>
 	  <Version>1.0.0</Version>
 	  <Authors>Maviray</Authors>
 	  <Company>Maviray</Company>
 	  <Copyright>Copyright @2026 Maviray</Copyright>
-	  <Description>Blazor Grid Persistence</Description>
-	  <PackageTags>blazor;grid;persistence;maviray</PackageTags>
+	  <Description>Blazor Grid EntityFramework</Description>
+	  <PackageTags>blazor;grid;entityframework;maviray</PackageTags>
 	  <RepositoryUrl>https://github.com/Maviray/blazor-ui-kit</RepositoryUrl>
 	  <PackageProjectUrl>https://github.com/Maviray/blazor-ui-kit</PackageProjectUrl>
 	  <RepositoryType>git</RepositoryType>

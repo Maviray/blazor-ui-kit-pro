@@ -50,6 +50,6 @@
 
 
 	<ItemGroup>
-	  <ProjectReference Include="..\Maviray.Blazor.Components.Pro.Grid.Persistence\Maviray.Blazor.Components.Pro.Grid.Persistence.csproj" />
+	  <ProjectReference Include="..\Maviray.Blazor.Components.Pro.Core\Maviray.Blazor.Components.Pro.Core.csproj" />
 	</ItemGroup>
 </Project>
