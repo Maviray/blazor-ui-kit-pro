@@ -1,1 +1,31 @@
-﻿@inherits MaviComponentProBase
+﻿@using Maviray.Blazor.Components.Pro.Core.Enums.Grid
+@using Maviray.Blazor.Components.Pro.Core.Interfaces
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid
+@inherits MaviComponentProBase
+@typeparam TDataItem where TDataItem : class
+@typeparam TModel where TModel : class, IGridCollectionModel<TDataItem, TKey>
+@typeparam TKey where TKey : IEquatable<TKey>
+
+@code
+{
+    private MaviGridState _gridState = new();
+    private MaviGridCollection<TKey>? _collection;
+
+    [Parameter]
+    private MaviGridParameters Parameters { get; set; } = new();
+
+    [Parameter]
+    public Func<MaviGridRow<TKey>, IEnumerable<IMaviIconButton>>? BuildRowContextMenu { get; set; }
+
+    [Parameter]
+    public Func<MaviGridDataQueryParameters, MaviGridCollection<TKey>>? PullCollection { get; set; }
+
+    [Parameter]
+    public EventCallback<IMaviButton> MainContextMenuButtonClick { get; set; }
+
+    [Parameter]
+    public EventCallback<IMaviIconButton> RowContextMenuItemClick { get; set; }
+
+    [Parameter]
+    public EventCallback<MaviGridCell<TKey>> CellClick { get; set; }
+}
