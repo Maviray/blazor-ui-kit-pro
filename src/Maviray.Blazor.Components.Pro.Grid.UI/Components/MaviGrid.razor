@@ -12,7 +12,7 @@
     private MaviGridCollection<TKey>? _collection;
 
     [Parameter]
-    private MaviGridParameters Parameters { get; set; } = new();
+    public MaviGridParameters Parameters { get; set; } = new();
 
     [Parameter]
     public Func<MaviGridRow<TKey>, IEnumerable<IMaviIconButton>>? BuildRowContextMenu { get; set; }

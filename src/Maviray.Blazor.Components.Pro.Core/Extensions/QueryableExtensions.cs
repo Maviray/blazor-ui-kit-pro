@@ -1,4 +1,5 @@
-﻿using Maviray.Blazor.Components.Pro.Core.Constants;
+﻿using Maviray.Blazor.Components.Core.Enums;
+using Maviray.Blazor.Components.Pro.Core.Constants;
 using Maviray.Blazor.Components.Pro.Core.Enums;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -15,7 +16,7 @@ public static class QueryableExtensions
     /// <param name="propertyName">The name of the property, supports nested properties like "Property.SubProperty"</param>
     /// <param name="sortOrder">indicates if order should be ascending or descending</param>
     /// <returns>A dynamically ordered IQueryable</returns>
-    public static IQueryable<TEntity> OrderByDynamic<TEntity>(this IQueryable<TEntity> source, string propertyName, MaviSortOrder sortOrder)
+    public static IQueryable<TEntity> OrderByDynamic<TEntity>(this IQueryable<TEntity> source, string propertyName, SortOrder sortOrder)
     {
         if (string.IsNullOrEmpty(propertyName))
         {
@@ -41,7 +42,7 @@ public static class QueryableExtensions
         var lambda = Expression.Lambda(property, parameter);
 
         // Determine the OrderBy or OrderByDescending method
-        var methodName = sortOrder == MaviSortOrder.Asc ? QueryConstants.ORDER_BY : QueryConstants.ORDER_BY_DESCENDING;
+        var methodName = sortOrder == SortOrder.Ascending ? QueryConstants.ORDER_BY : QueryConstants.ORDER_BY_DESCENDING;
 
         // Find the generic OrderBy method
         var method = typeof(Queryable).GetMethods(BindingFlags.Public | BindingFlags.Static)

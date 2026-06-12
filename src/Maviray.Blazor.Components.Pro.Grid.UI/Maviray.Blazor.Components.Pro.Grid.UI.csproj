@@ -50,6 +50,11 @@
 
 
 	<ItemGroup>
+	  <PackageReference Include="Maviray.Blazor.Components.Material" Version="0.1.17" />
+	</ItemGroup>
+
+
+	<ItemGroup>
 	  <ProjectReference Include="..\Maviray.Blazor.Components.Pro.Core\Maviray.Blazor.Components.Pro.Core.csproj" />
 	</ItemGroup>
 </Project>

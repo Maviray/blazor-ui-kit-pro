@@ -1,16 +1,31 @@
+using Maviray.Blazor.Components.Pro.Core.Extensions;
+using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid;
 using Maviray.Blazor.Components.Pro.Grid.Sample.Components;
+using Maviray.Blazor.Components.Pro.Grid.Sample.Services;
+using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Context;
+using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Seeding;
+using Microsoft.EntityFrameworkCore;
 
 namespace Maviray.Blazor.Components.Pro.Grid.Sample
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
+
+            builder.Services.AddDbContextFactory<SampleDbContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("SampleDb")));
+
+            builder.Services.RegisterGridDataFactory();
+
+            builder.Services.AddTransient(
+                typeof(IGridDataSource<>),
+                typeof(SampleDbContextDataSource<>));
 
             var app = builder.Build();
 
@@ -30,6 +45,9 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample
             app.MapStaticAssets();
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
+
+            await SampleDbSeeder.SeedAsync(
+                app.Services.GetRequiredService<IDbContextFactory<SampleDbContext>>());
 
             app.Run();
         }
