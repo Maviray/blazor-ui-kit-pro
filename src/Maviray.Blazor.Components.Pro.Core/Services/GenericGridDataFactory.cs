@@ -27,7 +27,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
         _dataSource = dataSource;
     }
 
-    public async Task<MaviGridCollection<TKey>> BuildDataCollection(MaviGridDataQueryParameters queryParameters)
+    public async Task<MaviGridCollection<TKey>?> BuildDataCollection(MaviGridDataQueryParameters queryParameters)
     {
         if (string.IsNullOrWhiteSpace(queryParameters.OrderByColumnKey))
         {
@@ -57,9 +57,22 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
         var requestedPageNumber = ValidateRequestedPage(totalPages, queryParameters.PageNumber);
         var skip = CalculateSkip(totalItemCount, requestedPageNumber, numberOfItemsToTake);
 
-        var resultingData = filter == null
-            ? _dataSource.Get(queryParameters.SortOrder, queryParameters.OrderByColumnKey, skip, numberOfItemsToTake)
-            : _dataSource.Get(queryParameters.SortOrder, queryParameters.OrderByColumnKey, skip, numberOfItemsToTake, filter);
+
+        IQueryable<TDataItem> ? resultingData = null;
+
+        if (filter == null)
+        {
+            resultingData = await _dataSource.Get(queryParameters.SortOrder, queryParameters.OrderByColumnKey, skip, numberOfItemsToTake);
+        }
+        else
+        {
+            resultingData = await _dataSource.Get(queryParameters.SortOrder, queryParameters.OrderByColumnKey, skip, numberOfItemsToTake, filter);
+        }
+
+        if (resultingData == null)
+        {
+            return null;
+        }
 
         var collection = ConstructCollection(resultingData);
 
