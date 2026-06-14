@@ -81,12 +81,59 @@ public class QueryBuilder<TDataItem, TKey> where TDataItem : class where TKey : 
         // underlying number, a string column compares against the member name. We just have to
         // coerce the incoming filter value (which may be a member name, a numeric string, or a
         // boxed numeric value) into the matching enum member first.
-        var coercedValue = propertyType.IsEnum
-            ? ConvertToEnum(propertyType, value)
-            : Convert.ChangeType(value, propertyType, CultureInfo.InvariantCulture);
+        var coercedValue = CoerceValue(propertyType, value);
 
         var convertedValue = Expression.Constant(coercedValue, property.Type);
         return (propertyType, convertedValue);
+    }
+
+    private static object CoerceValue(Type targetType, object value)
+    {
+        if (targetType.IsEnum)
+        {
+            return ConvertToEnum(targetType, value);
+        }
+
+        // Already the target type (e.g. a Guid or DateTime passed in strongly typed).
+        if (value.GetType() == targetType)
+        {
+            return value;
+        }
+
+        // Types that are not IConvertible and therefore unsupported by Convert.ChangeType. They are
+        // parsed explicitly from their text form using the invariant culture.
+        if (value is string text)
+        {
+            text = text.Trim();
+
+            if (targetType == typeof(Guid))
+            {
+                return Guid.Parse(text);
+            }
+
+            if (targetType == typeof(DateTimeOffset))
+            {
+                return DateTimeOffset.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.None);
+            }
+
+            if (targetType == typeof(DateOnly))
+            {
+                return DateOnly.Parse(text, CultureInfo.InvariantCulture);
+            }
+
+            if (targetType == typeof(TimeOnly))
+            {
+                return TimeOnly.Parse(text, CultureInfo.InvariantCulture);
+            }
+
+            if (targetType == typeof(TimeSpan))
+            {
+                return TimeSpan.Parse(text, CultureInfo.InvariantCulture);
+            }
+        }
+
+        // Everything else (numeric types, bool, char, string, DateTime) is IConvertible.
+        return Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
     }
 
     private static object ConvertToEnum(Type enumType, object value)

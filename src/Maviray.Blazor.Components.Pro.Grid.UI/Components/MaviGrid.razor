@@ -661,13 +661,30 @@
                 criteria = MaviGridFilterCriteria.Contains;
                 return true;
 
+            case MaviGridPropertyType.Char:
+            case MaviGridPropertyType.NavChar:
+                return text.Length == 1;
+
             case MaviGridPropertyType.Int:
             case MaviGridPropertyType.NavInt:
-                return long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+                return long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
+                    || ulong.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
 
             case MaviGridPropertyType.Decimal:
             case MaviGridPropertyType.NavDecimal:
                 return decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out _);
+
+            case MaviGridPropertyType.DateTime:
+            case MaviGridPropertyType.NavDateTime:
+                return DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
+
+            case MaviGridPropertyType.TimeSpan:
+            case MaviGridPropertyType.NavTimeSpan:
+                return TimeSpan.TryParse(text, CultureInfo.InvariantCulture, out _);
+
+            case MaviGridPropertyType.Guid:
+            case MaviGridPropertyType.NavGuid:
+                return Guid.TryParse(text, out _);
 
             case MaviGridPropertyType.Bool:
             case MaviGridPropertyType.NavBool:
@@ -678,7 +695,7 @@
                 return TryResolveEnumFilter(column, text, out value);
 
             default:
-                // DateTime / Undefined: let the query builder coerce the text on equality.
+                // Undefined: let the query builder coerce the text on equality.
                 return true;
         }
     }
