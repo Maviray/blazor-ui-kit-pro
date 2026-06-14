@@ -55,7 +55,7 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
         }
     }
 
-    public async Task<IQueryable<TDataItem>?> Get(SortOrder sortOrder, string orderBy, int skip, int numberOfItemsToTake, Expression<Func<TDataItem, bool>>? filter = null)
+    public async Task<IQueryable<TDataItem>?> Get(SortOrder sortOrder, string orderBy, int skip, int numberOfItemsToTake, Expression<Func<TDataItem, bool>>? filter = null, IReadOnlyCollection<string>? includePaths = null)
     {
         await InitializeContext();
 
@@ -65,14 +65,34 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
         }
 
         _logger.LogInformation(
-            "Getting items from data source. SortOrder: {SortOrder}, OrderBy: {OrderBy}, Skip: {Skip}, Take: {Take}, Filter: {Filter}",
+            "Getting items from data source. SortOrder: {SortOrder}, OrderBy: {OrderBy}, Skip: {Skip}, Take: {Take}, Filter: {Filter}, Includes: {Includes}",
             sortOrder,
             orderBy,
             skip,
             numberOfItemsToTake,
-            filter?.ToString() ?? "none");
+            filter?.ToString() ?? "none",
+            includePaths == null || includePaths.Count == 0 ? "none" : string.Join(", ", includePaths));
 
-        return filter == null ? _dbSet.OrderByDynamic(orderBy, sortOrder).Skip(skip).Take(numberOfItemsToTake) : _dbSet.Where(filter).OrderByDynamic(orderBy, sortOrder).Skip(skip).Take(numberOfItemsToTake);
+        IQueryable<TDataItem> query = _dbSet;
+
+        // Eager-load the requested navigation properties so nested grid columns are populated.
+        if (includePaths != null)
+        {
+            foreach (var includePath in includePaths)
+            {
+                if (!string.IsNullOrWhiteSpace(includePath))
+                {
+                    query = query.Include(includePath);
+                }
+            }
+        }
+
+        if (filter != null)
+        {
+            query = query.Where(filter);
+        }
+
+        return query.OrderByDynamic(orderBy, sortOrder).Skip(skip).Take(numberOfItemsToTake);
     }
 
     /// <summary>

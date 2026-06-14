@@ -8,6 +8,7 @@ using Maviray.Blazor.Components.Pro.Core.Models.Grid;
 using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 using Mapster;
@@ -19,6 +20,18 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
     where TModel : class, IGridCollectionModel<TDataItem, TKey>
     where TKey : IEquatable<TKey> 
 {
+    // Navigation properties on the model that must be eager-loaded from the data source so their
+    // nested columns are populated. Computed once per closed generic type via reflection.
+    // ReSharper disable once StaticMemberInGenericType
+    private static readonly IReadOnlyCollection<string> NavigationIncludePaths = BuildNavigationIncludePaths();
+
+    // Eager-loaded navigations can form reference cycles (e.g. parent.Child.Parent after EF
+    // relationship fixup). PreserveReference makes Mapster reuse an already-mapped instance instead
+    // of recursing into the cycle, which would otherwise overflow the stack. Cloned from the global
+    // settings so any consumer-registered mappings are retained.
+    // ReSharper disable once StaticMemberInGenericType
+    private static readonly TypeAdapterConfig MappingConfig = BuildMappingConfig();
+
     private readonly ILogger<GenericGridDataFactory<TDataItem, TModel, TKey>> _logger;
     private readonly IGridDataSource<TDataItem> _dataSource;
     public GenericGridDataFactory(ILogger<GenericGridDataFactory<TDataItem, TModel, TKey>> logger, IGridDataSource<TDataItem> dataSource)
@@ -60,14 +73,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
 
         IQueryable<TDataItem> ? resultingData = null;
 
-        if (filter == null)
-        {
-            resultingData = await _dataSource.Get(queryParameters.SortOrder, queryParameters.OrderByColumnKey, skip, numberOfItemsToTake);
-        }
-        else
-        {
-            resultingData = await _dataSource.Get(queryParameters.SortOrder, queryParameters.OrderByColumnKey, skip, numberOfItemsToTake, filter);
-        }
+        resultingData = await _dataSource.Get(queryParameters.SortOrder, queryParameters.OrderByColumnKey, skip, numberOfItemsToTake, filter, NavigationIncludePaths);
 
         if (resultingData == null)
         {
@@ -132,7 +138,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
 
         foreach (var dataItem in queryable)
         {
-            var gridModelItem = dataItem.Adapt<TModel>();
+            var gridModelItem = dataItem.Adapt<TModel>(MappingConfig);
             gridModelItem.ConstructFrom(dataItem);
 
             var row = ConstructCollectionRow(gridModelItem, properties, collection.Columns);
@@ -159,6 +165,28 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
         }
 
         return expression;
+    }
+
+    /// <summary>
+    /// Collects the names of the model's navigation properties (those marked with
+    /// <see cref="GridNavPropertyAttribute"/>) so the data source can eager-load them. The property
+    /// name is used verbatim as the include path, which relies on the navigation having the same name
+    /// on the underlying data item as on the model.
+    /// </summary>
+    private static IReadOnlyCollection<string> BuildNavigationIncludePaths()
+    {
+        return typeof(TModel)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(property => property.GetCustomAttribute<GridNavPropertyAttribute>() != null)
+            .Select(property => property.Name)
+            .ToArray();
+    }
+
+    private static TypeAdapterConfig BuildMappingConfig()
+    {
+        var config = TypeAdapterConfig.GlobalSettings.Clone();
+        config.Default.PreserveReference(true);
+        return config;
     }
 
     private static int ValidateNumberOfItemsToTake(int numberOfItemsPerPage)
@@ -285,7 +313,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
                                 Key = nestedPropertyKey,
                                 Title = DetermineNestedPropertyTitle(nestedProp),
                                 GridPropertyType = GetPropertyType(nestedProp.PropertyType),
-                                Sequence = GridNavPropertySequence(nestedProp)
+                                Sequence = GridNavPropertySequence(prop)
                             };
 
                             ProcessColumn(nestedPropertyColumn, nestedProp);
@@ -398,34 +426,59 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
 
     private static MaviGridPropertyType GetPropertyType(Type type, bool isNavigation = false)
     {
-        if (type == typeof(string))
+        // Collapse Nullable<T> to T so that, for example, int and int? share a mapping.
+        var t = Nullable.GetUnderlyingType(type) ?? type;
+
+        if (t == typeof(string))
         {
             return isNavigation ? MaviGridPropertyType.NavString : MaviGridPropertyType.String;
         }
 
-        if (type == typeof(bool) || type == typeof(bool?))
+        if (t == typeof(char))
+        {
+            return isNavigation ? MaviGridPropertyType.NavChar : MaviGridPropertyType.Char;
+        }
+
+        if (t == typeof(bool))
         {
             return isNavigation ? MaviGridPropertyType.NavBool : MaviGridPropertyType.Bool;
         }
 
-        if (type == typeof(int) || type == typeof(int?))
+        // All integral types share the Int category.
+        if (t == typeof(byte) || t == typeof(sbyte)
+            || t == typeof(short) || t == typeof(ushort)
+            || t == typeof(int) || t == typeof(uint)
+            || t == typeof(long) || t == typeof(ulong))
         {
             return isNavigation ? MaviGridPropertyType.NavInt : MaviGridPropertyType.Int;
         }
 
-        if (type == typeof(decimal) || type == typeof(decimal?))
+        // All real/floating-point types share the Decimal category.
+        if (t == typeof(decimal) || t == typeof(double) || t == typeof(float))
         {
             return isNavigation ? MaviGridPropertyType.NavDecimal : MaviGridPropertyType.Decimal;
         }
 
-        if (type.IsEnum)
+        if (t.IsEnum)
         {
             return isNavigation ? MaviGridPropertyType.NavEnum : MaviGridPropertyType.Enum;
         }
 
-        if (type == typeof(DateTime) || type == typeof(DateTime?))
+        // All point-in-time types share the DateTime category; formatting is resolved per runtime type.
+        if (t == typeof(DateTime) || t == typeof(DateTimeOffset)
+            || t == typeof(DateOnly) || t == typeof(TimeOnly))
         {
             return isNavigation ? MaviGridPropertyType.NavDateTime : MaviGridPropertyType.DateTime;
+        }
+
+        if (t == typeof(TimeSpan))
+        {
+            return isNavigation ? MaviGridPropertyType.NavTimeSpan : MaviGridPropertyType.TimeSpan;
+        }
+
+        if (t == typeof(Guid))
+        {
+            return isNavigation ? MaviGridPropertyType.NavGuid : MaviGridPropertyType.Guid;
         }
 
         return MaviGridPropertyType.Undefined;
@@ -502,8 +555,13 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
         return value switch
         {
             null => string.Empty,
-            DateTime dateTime => dateTime.ToString("yyyy-MM-dd HH:mm:ss"),
-            _ => value?.ToString() ?? string.Empty
+            DateTime dateTime => dateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+            DateTimeOffset dateTimeOffset => dateTimeOffset.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture),
+            DateOnly dateOnly => dateOnly.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            TimeOnly timeOnly => timeOnly.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
+            // IFormattable covers the numeric types so they render with a stable, culture-invariant form.
+            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+            _ => value.ToString() ?? string.Empty
         };
     }
 
