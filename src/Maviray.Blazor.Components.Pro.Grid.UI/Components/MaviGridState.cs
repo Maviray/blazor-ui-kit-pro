@@ -17,5 +17,8 @@ internal class MaviGridState
     internal string ActiveRowMenuDropdownPositionStyle = string.Empty;
     internal TableRowContextMenuDisplayStyle TableRowContextMenuDisplayStyle;
     internal string? ContextMenuId;
+    internal bool BackdropInitialState = true;
+    internal bool ContextMenuVisible;
+    internal bool NeedsRender;
 
 }
