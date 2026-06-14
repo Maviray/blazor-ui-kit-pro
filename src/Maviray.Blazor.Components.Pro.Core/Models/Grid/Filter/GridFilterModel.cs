@@ -12,7 +12,7 @@ public class GridFilterModel
     /// <summary>
     /// Value to match
     /// </summary>
-    public string? Value { get; set; }
+    public object? Value { get; set; }
 
     public MaviGridFilterCriteria GridFilterCriteria { get; set; }
 }

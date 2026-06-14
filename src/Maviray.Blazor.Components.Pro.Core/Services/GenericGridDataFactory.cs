@@ -148,14 +148,9 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
 
         foreach (var item in filters)
         {
-            if (string.IsNullOrWhiteSpace(item.Key))
+            if (string.IsNullOrWhiteSpace(item.Key) || item.Value is null)
             {
                 continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(item.Value))
-            {
-                item.Value = string.Empty;
             }
 
             var filterExpression = QueryBuilder<TDataItem, TKey>.BuildFilterExpression(item.Key, item.GridFilterCriteria, item.Value);

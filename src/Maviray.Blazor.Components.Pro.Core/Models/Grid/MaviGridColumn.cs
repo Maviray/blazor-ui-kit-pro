@@ -17,7 +17,7 @@ public class MaviGridColumn
     public MaviGridPropertyType GridPropertyType { get; set; }
     public MaviGridFilterCriteria CurrentFilter { get; set; }
     public HorizontalPosition HorizontalTextAlignment { get; set; }
-    public string? CurrentFilerValue { get; set; }
+    public object? CurrentFilerValue { get; set; }
     public string? BoolPositiveDisplay { get; set; } // displays value when column is of boolean type and value is true/selected
     public string? BoolNegativeDisplay { get; set; } // displays value when column is of boolean type and value is false/unselected
 
