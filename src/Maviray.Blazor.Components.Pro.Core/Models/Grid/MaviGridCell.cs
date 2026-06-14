@@ -13,5 +13,5 @@ public class MaviGridCell<TKey> where TKey : IEquatable<TKey>
     public MaviGridPropertyType GridPropertyType { get; set; }
     public bool Selected { get; set; }
     public bool Active { get; set; }
-    public MaviGridCellType CellType { get; set; }
+    public MaviGridColumnCellBehavior CellBehavior { get; set; }
 }

@@ -19,9 +19,9 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
     where TModel : class, IGridCollectionModel<TDataItem, TKey>
     where TKey : IEquatable<TKey> 
 {
-    private readonly ILogger _logger;
+    private readonly ILogger<GenericGridDataFactory<TDataItem, TModel, TKey>> _logger;
     private readonly IGridDataSource<TDataItem> _dataSource;
-    public GenericGridDataFactory(ILogger logger, IGridDataSource<TDataItem> dataSource)
+    public GenericGridDataFactory(ILogger<GenericGridDataFactory<TDataItem, TModel, TKey>> logger, IGridDataSource<TDataItem> dataSource)
     {
         _logger = logger;
         _dataSource = dataSource;
@@ -85,6 +85,11 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
         collection.TotalPages = totalPages;
         collection.TotalRows = totalItemCount;
         collection.CurrentPage = requestedPageNumber;
+        collection.SortOrder = queryParameters.SortOrder;
+        collection.SortColumnKey = queryParameters.OrderByColumnKey;
+
+        collection.FirstRowIndex = totalItemCount == 0 ? 0 : (collection.CurrentPage - 1) * collection.Take + 1;
+        collection.LastRowIndex = totalItemCount == 0 ? 0 : Math.Min(collection.CurrentPage * collection.Take, collection.TotalRows);
 
         var activeColumn = collection.Columns.FirstOrDefault(x => x.Key.Equals(queryParameters.OrderByColumnKey)) ?? collection.Columns.FirstOrDefault();
 
@@ -236,7 +241,8 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
                         Key = prop.Name,
                         Title = DeterminePropertyTitle(prop),
                         GridPropertyType = GetPropertyType(prop.PropertyType),
-                        Sequence = GetGridDataPropertySequence(prop)
+                        Sequence = GetGridDataPropertySequence(prop),
+                        MaviGridColumnBehavior = GetGridDataPropertyCellBehavior(prop)
                     };
 
                     ProcessColumn(column, prop);
@@ -252,7 +258,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
                     ColumnKey = column.Key,
                     RowKey = row.Key,
                     GridColumnType = column.GridColumnType,
-                    CellType = GetGridDataPropertyType(prop)
+                    CellBehavior = GetGridDataPropertyCellBehavior(prop)
                 };
 
                 ProcessCell(column, cell, value);
@@ -302,7 +308,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
                             ColumnKey = nestedPropertyColumn.Key,
                             RowKey = row.Key,
                             GridColumnType = nestedPropertyColumn.GridColumnType,
-                            CellType = GridNavPropertyType(prop)
+                            CellBehavior = GridNavPropertyType(prop)
                         };
 
                         ProcessCell(nestedPropertyColumn, nestedCell, nestedValue);
@@ -506,20 +512,20 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
         };
     }
 
-    private static MaviGridCellType GetGridDataPropertyType(PropertyInfo property)
+    private static MaviGridColumnCellBehavior GetGridDataPropertyCellBehavior(PropertyInfo property)
     {
         // Retrieve the [Display] attribute
         var gridDataPropertyAttribute = property.GetCustomAttribute<GridDataPropertyAttribute>();
 
-        return gridDataPropertyAttribute?.CellType ?? MaviGridCellType.Default;
+        return gridDataPropertyAttribute?.ColumnCellBehavior ?? MaviGridColumnCellBehavior.Default;
     }
 
-    private static MaviGridCellType GridNavPropertyType(PropertyInfo property)
+    private static MaviGridColumnCellBehavior GridNavPropertyType(PropertyInfo property)
     {
         // Retrieve the [Display] attribute
         var gridNavPropertyAttribute = property.GetCustomAttribute<GridNavPropertyAttribute>();
 
-        return gridNavPropertyAttribute?.CellType ?? MaviGridCellType.Default;
+        return gridNavPropertyAttribute?.CellType ?? MaviGridColumnCellBehavior.Default;
     }
 
     /// <summary>

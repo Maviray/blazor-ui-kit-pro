@@ -1,4 +1,6 @@
-﻿namespace Maviray.Blazor.Components.Pro.Core.Models.Grid;
+﻿using Maviray.Blazor.Components.Core.Enums;
+
+namespace Maviray.Blazor.Components.Pro.Core.Models.Grid;
 
 public class MaviGridCollection<TKey> where TKey : IEquatable<TKey>
 {
@@ -6,6 +8,11 @@ public class MaviGridCollection<TKey> where TKey : IEquatable<TKey>
     public int TotalRows { get; set; }
     public int TotalPages { get; set; }
     public int CurrentPage { get; set; } = 1;
+    public SortOrder SortOrder { get; set; }
+    public string? SortColumnKey { get; set; }
+
+    public int FirstRowIndex { get; set; }
+    public int LastRowIndex { get; set; }
 
     public List<MaviGridColumn> Columns { get; set; } = [];
     public List<MaviGridRow<TKey>> Rows { get; set; } = [];

@@ -1,31 +1,613 @@
-﻿@using Maviray.Blazor.Components.Pro.Core.Enums.Grid
+﻿@using Maviray.Blazor.Components.Core.Enums
+@using Maviray.Blazor.Components.Core.EventArgs
+@using Maviray.Blazor.Components.Core.Extensions
+@using Maviray.Blazor.Components.Core.Models.Tables
+@using Maviray.Blazor.Components.Material.Components.DataDisplay.Icons
+@using Maviray.Blazor.Components.Material.Components.Feedback
+@using Maviray.Blazor.Components.Material.Components.Inputs
+@using Maviray.Blazor.Components.Material.Components.Spinner
+@using Maviray.Blazor.Components.Material.Constants
+@using Maviray.Blazor.Components.Pro.Core.Enums.Grid
 @using Maviray.Blazor.Components.Pro.Core.Interfaces
+@using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid
-@inherits MaviComponentProBase
+@using Microsoft.AspNetCore.Components.Web
+@inherits Maviray.Blazor.Components.Core.Components.MaviComponentBase
 @typeparam TDataItem where TDataItem : class
 @typeparam TModel where TModel : class, IGridCollectionModel<TDataItem, TKey>
 @typeparam TKey where TKey : IEquatable<TKey>
 
+    <div class="w-full overflow-hidden rounded-xl border border-zinc-200 text-sm min-h-40 relative">
+    <MaviBackdrop @ref="_maviBackdrop"
+                  Opacity="BackdropOpacity.Lighten"
+                  ZIndex="ZIndex.Fifty"
+                  CloseOnBackdropClick="false"
+                  InitiallyActive="true"
+                  CenterContent="true">
+        <MaviSpinnerStarRotate ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Regular" />
+    </MaviBackdrop>
+    
+    @if (_collection != null && _collection.Rows.Any())
+    {
+        <div class="grid divide-y divide-zinc-200" style="grid-template-columns: repeat(@VisibleColumnsCount, minmax(min-content, 200px))">
+            @* Header row *@
+            @foreach (var column in GetVisibleColumns())
+            {
+                <div class="@GetColumnHeaderContainerCss(column)">
+                    <div class="@GetColumnHeaderCss(column)">
+                        <div class="@Tailwind.Theme.Typography.LABEL_LARGE cursor-pointer select-none transition-colors @Tailwind.Theme.Colors.Text.Hover.THEME_DEFAULT_TEN_TEXT_HOVER flex items-center gap-2"
+                            @onclick="() => SortByColumn(column.Key)">
+                            <span>@column.Title</span>
+                            @if (_collection?.SortColumnKey == column.Key)
+                            {
+                                if (_collection?.SortOrder == SortOrder.Ascending)
+                                {
+                                    <i class="lni lni-chevron-down"></i>
+                                }
+                                else
+                                {
+                                    <i class="lni lni-chevron-up"></i>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="@GetContextMenuCellCss()">
+                @if (_mainContextMenu is not null && _mainContextMenu.Any())
+                {
+                    <div id="@_gridState.ContextMenuId" data-context-menu-id="@_gridState.ContextMenuId" class="relative flex justify-end">
+                        <!-- Btn Toggle Context Menu Dropdown -->
+                        <MaviButtonIcon Icon="lni lni-menu-meatballs-1"
+                                        ElementVariant="ElementVariant.Text"
+                                        ThemeColorScheme="ThemeColorScheme.Default"
+                                        ElementSize="ElementSize.Small"
+                                        OnClick="ToggleMainContextMenuDropDown"
+                                        Title="@Parameters?.ContentMenuTitle" />
+
+                        <!-- Context Menu Dropdown -->
+                        <div class="@GetMainContextMenuCss()" style="@GetMainContextMenuStyle()">
+                            @foreach (var contextMenuButton in _mainContextMenu)
+                            {
+                                <button class="@Tailwind.Theme.Typography.BODY_MEDIUM @Tailwind.Theme.Colors.Text.THEME_DEFAULT_NINE_TEXT @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER block w-full px-4 py-2.5 text-left rounded-md transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        disabled="@contextMenuButton?.Disabled"
+                                        @onclick="async () => { await ContextMenuClick(contextMenuButton); }">
+                                    @contextMenuButton?.Title
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            @* Filter row *@
+            @if (Parameters?.EnableFilters == true)
+            {
+                @foreach (var column in GetVisibleColumns())
+                {
+                    <div class="px-4 py-2 bg-zinc-50">
+                        <input type="text"
+                               id="@($"filter-{column.Key}-{Id}")"
+                               class="@GetSearchInputCss()"
+                               placeholder="@Parameters?.FilterPlaceholderText"
+                               @oninput="(e) => UpdateColumnFilter(column.Key, e)"/>
+                    </div>
+                }
+                <div class="px-4 py-2 bg-zinc-50"></div>
+            }
+            @* Data rows *@
+            @if (_collection != null)
+            {
+                foreach (var (row, rowIndex) in _collection.Rows.Select((r, i) => (r, i)))
+                {
+                    <div @key="row.Guid" style="display:contents" class="group">
+                        @foreach (var col in GetVisibleColumns())
+                        {
+                            var cell = row.Cells.FirstOrDefault(c => c.ColumnKey == col.Key);
+                            <div class="@GetCellBoxClassWithAlignment(col, rowIndex)"
+                                title="@cell?.Value"
+                                 @onclick="async () => { await RowClick(row, col); }">
+                                @TrimCellValue(cell)
+                            </div>
+                        }
+
+                        <div class="@GetCellBoxClass(rowIndex, "text-right")">
+                            @if (row.ContextActions.Any())
+                            {
+                                <div class="w-full flex items-center justify-end">
+                                    @if (_gridState.TableRowContextMenuDisplayStyle == TableRowContextMenuDisplayStyle.Icons)
+                                    {
+                                        <div id="@row.ContextMenuId" data-context-menu-id="@row.ContextMenuId" class="flex items-center gap-1">
+                                            @foreach (var rowContextMenuButton in row.ContextActions)
+                                            {
+                                                <MaviButtonIcon Icon="@rowContextMenuButton.Icon"
+                                                                ElementVariant="rowContextMenuButton.ElementVariant"
+                                                                ThemeColorScheme="rowContextMenuButton.ThemeColorScheme"
+                                                                ElementSize="rowContextMenuButton.ElementSize"
+                                                                Disabled="@rowContextMenuButton.Disabled"
+                                                                OnClick="async (e) => { await RowContextMenuItemClick(e, row, rowContextMenuButton); }"
+                                                                Title="@rowContextMenuButton.Title" />
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div id="@row.ContextMenuId" data-context-menu-id="@row.ContextMenuId" class="relative">
+                                            <!-- Btn Toggle Context Menu Dropdown -->
+                                            <MaviButtonIcon Icon="lni lni-menu-meatballs-1"
+                                                            ElementVariant="ElementVariant.Text"
+                                                            ThemeColorScheme="ThemeColorScheme.Default"
+                                                            ElementSize="ElementSize.Small"
+                                                            OnClick="(e) => { ToggleRowContextMenuDropDown(row, e); }"
+                                                            Title="@Parameters?.ContentMenuTitle" />
+
+                                            <!-- Row Context Menu Dropdown -->
+                                            <div class="@GetRowContextMenuCss(row, rowIndex)" style="@GetRowContextMenuStyle(row)">
+                                                @foreach (var rowContextMenuButton in row.ContextActions)
+                                                {
+                                                    <button class="@Tailwind.Theme.Typography.BODY_MEDIUM @Tailwind.Theme.Colors.Text.THEME_DEFAULT_NINE_TEXT @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER block w-full px-4 py-2.5 text-left rounded-md transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            disabled="@rowContextMenuButton?.Disabled"
+                                                            @onclick="async (e) => { await RowContextMenuItemClick(e, row, rowContextMenuButton); }">
+                                                        @rowContextMenuButton?.Title
+                                                    </button>
+                                                }
+                                            </div>
+                                        </div>
+
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+
+            @* ── Footer row – always spans every column ── *@
+            <div id="@($"pagination-{Id}")" class="col-span-full" @onclick:stopPropagation="true">
+                <div class="@GetFooterRowCss()">
+                    <div class="flex items-center gap-2">
+                        <span class="@GetPaginationTextCss()">@Parameters?.RowsPerPageText</span>
+                        <select id="@($"select-row-number-{Id}")"
+                                class="@GetCountPerPageSelectCss()"
+                                @onchange="UpdatePageSize"
+                                @onclick:stopPropagation="true"
+                                title="@Parameters?.SelectNumberOfRowsToDisplayText">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        @if (_collection is { Rows.Count: > 0 })
+                        {
+                            <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
+                                <MaviIconOnline IconOnlineType="IconOnlineType.ChevronLeftOnline"
+                                                IconColor="ElementColor.DimGrey"
+                                                IconSize="GetIconSize()"
+                                                OnClick="PrevPage"/>
+                            </div>
+                            <span class="@GetPaginationTextCss()">
+                                @_collection?.FirstRowIndex–@_collection?.LastRowIndex of @_collection?.TotalRows
+                            </span>
+                            <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
+                                <MaviIconOnline IconOnlineType="IconOnlineType.ChevronRightOnline"
+                                                IconColor="ElementColor.DimGrey"
+                                                IconSize="GetIconSize()"
+                                                OnClick="NextPage"/>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        @if (NoDataContent != null)
+        {
+            @NoDataContent
+        }
+        else
+        {
+            <div class="w-full min-h-40 flex items-center justify-center">
+                <div class="@Tailwind.Theme.Typography.BODY_LARGE @Tailwind.Theme.Colors.Text.THEME_DEFAULT_SEVEN_TEXT">@Parameters?.NoDataAvailableTitle</div>
+            </div>
+        }
+    }
+</div>
+
+
 @code
 {
-    private MaviGridState _gridState = new();
+    private bool _needsRender = true;
+    private bool _contextMenuVisible = false;
+
+    private int VisibleColumnsCount => GetVisibleColumns().Count + 1;
+
+    private readonly MaviGridState _gridState = new();
+
     private MaviGridCollection<TKey>? _collection;
+
+    private List<MaviGridColumn>? _visibleColumnsCache;
+
+    private MaviBackdrop? _maviBackdrop;
+
+    private IEnumerable<IMaviButton>? _mainContextMenu;
 
     [Parameter]
     public MaviGridParameters Parameters { get; set; } = new();
 
     [Parameter]
-    public Func<MaviGridRow<TKey>, IEnumerable<IMaviIconButton>>? BuildRowContextMenu { get; set; }
+    public Func<MaviGridDataQueryParameters, Task<MaviGridCollection<TKey>?>>? FetchData { get; set; }
 
     [Parameter]
-    public Func<MaviGridDataQueryParameters, MaviGridCollection<TKey>>? PullCollection { get; set; }
+    public Func<Task<IEnumerable<IMaviButton>>>? ConstructMainContextMenu { get; set; }
 
     [Parameter]
-    public EventCallback<IMaviButton> MainContextMenuButtonClick { get; set; }
+    public EventCallback<IMaviButton> OnMainContextMenuButtonClick { get; set; }
 
     [Parameter]
-    public EventCallback<IMaviIconButton> RowContextMenuItemClick { get; set; }
+    public EventCallback<IMaviRowContextMenuItem<TKey>> OnRowContextMenuClick { get; set; }
 
     [Parameter]
-    public EventCallback<MaviGridCell<TKey>> CellClick { get; set; }
+    public EventCallback<MaviGridCell<TKey>> OnCellClick { get; set; }
+
+    [Parameter]
+    public RenderFragment? NoDataContent { get; set; }
+
+    #region Lifecycle Actions
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+
+        _gridState.ContextMenuId = $"context-menu-{Id}";
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        _gridState.TableRowContextMenuDisplayStyle = Parameters?.TableRowContextMenuDisplayStyle ?? TableRowContextMenuDisplayStyle.DropDown;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await RefreshTable();
+    }
+
+    #endregion
+
+    #region Main Actions
+    public virtual async Task Refresh()
+    {
+        await RefreshTable();
+
+        _needsRender = true;
+        StateHasChanged();
+    }
+
+    private async Task RefreshTable()
+    {
+        await BuildCollection();
+        await BuildContextMenu();
+    }
+
+    protected virtual async Task BuildCollection()
+    {
+        try
+        {
+            if (FetchData != null)
+            {
+                var parameters = new MaviGridDataQueryParameters();
+
+                if (_collection != null)
+                {
+                    parameters.OrderByColumnKey = _collection.SortColumnKey;
+                    parameters.SortOrder = _collection.SortOrder;
+                    parameters.NumberOfItemsPerPage = _collection.Take;
+                    parameters.PageNumber = _collection.CurrentPage;
+                }
+
+                _collection = await FetchData.Invoke(parameters);
+                _needsRender = true;
+            }
+
+            _visibleColumnsCache = null;
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, "Failed to fetch data for grid");
+        }
+    }
+
+    protected virtual async Task BuildContextMenu()
+    {
+        if (ConstructMainContextMenu != null)
+        {
+            try
+            {
+                _mainContextMenu = await ConstructMainContextMenu.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Logger?.Error(ex, "Failed to construct main context menu.");
+            }
+        }
+    }
+
+    protected virtual async Task RowContextMenuItemClick(MouseEventArgs args, MaviGridRow<TKey> row, IMaviRowContextMenuItem<TKey>? action)
+    {
+        row.ContextMenuVisible = false;
+
+        if (OnRowContextMenuClick.HasDelegate)
+        {
+            await OnRowContextMenuClick.InvokeAsync(action);
+        }
+
+        if (EnableLifeCycleLogging)
+        {
+            Logger?.LogDebugLifeCycle(Id, GetType());
+        }
+    }
+
+    protected void ToggleRowContextMenuDropDown(MaviGridRow<TKey> row, MouseClickEventArgs mouseEventArgs)
+    {
+        row.ContextMenuVisible = !row.ContextMenuVisible;
+        if (row.ContextMenuVisible)
+            _gridState.ActiveRowMenuDropdownPositionStyle = $"top:{mouseEventArgs.ClientY + 8}px;left:{mouseEventArgs.ClientX - 248}px;";
+    }
+
+    protected IReadOnlyList<MaviGridColumn> GetVisibleColumns()
+    {
+        if (_visibleColumnsCache != null) return _visibleColumnsCache == null ? Array.Empty<MaviGridColumn>() : _visibleColumnsCache;
+
+        if (_collection != null)
+        {
+            _visibleColumnsCache = _collection?.Columns
+                .Where(c => c.Visible)
+                .OrderBy(c => c.Sequence)
+                .ToList();
+        }
+
+        return _visibleColumnsCache == null ? Array.Empty<MaviGridColumn>() : _visibleColumnsCache;
+    }
+
+    protected virtual async Task PrevPage()
+    {
+
+    }
+
+    protected virtual async Task NextPage()
+    {
+
+    }
+
+    protected virtual void SortByColumn(string columnKey)
+    {
+
+    }
+
+    protected virtual async Task UpdatePageSize(ChangeEventArgs e)
+    {
+
+    }
+
+    protected virtual void ToggleMainContextMenuDropDown(MouseClickEventArgs mouseEventArgs)
+    {
+
+    }
+
+    protected virtual void ToggleRowContextMenuDropDown(MaviTableRow row, MouseClickEventArgs mouseEventArgs)
+    {
+
+    }
+
+    protected virtual async Task ContextMenuClick(IMaviButton? action)
+    {
+
+    }
+
+    protected virtual async Task RowClick(MaviGridRow<TKey> row, MaviGridColumn column)
+    {
+
+    }
+
+    protected virtual async Task RowContextMenuItemClick(MouseEventArgs args, MaviGridRow<TKey> row, MaviTableRowContextMenuItem? action)
+    {
+
+    }
+
+    protected virtual void UpdateColumnFilter(string columnKey, ChangeEventArgs args)
+    {
+
+    }
+
+    protected string TrimCellValue(MaviGridCell<TKey>? cell)
+    {
+        if (cell?.Value is null) return string.Empty;
+       
+        return Parameters.MaxCellCharsToDisplay > 0 ? cell.Value.TrimToLengthWithDots(Parameters.MaxCellCharsToDisplay) : cell.Value;
+    }
+
+    protected override bool ShouldRender()
+    {
+        if (!_needsRender) return false;
+
+        _needsRender = false;
+        return true;
+    }
+
+    #endregion
+
+    #region CSS
+
+    private string GetCellBoxClassWithAlignment(MaviGridColumn column, int rowIndex)
+    {
+        var cellText = column.MaviGridColumnBehavior == MaviGridColumnCellBehavior.Navigational ? "cursor-pointer font-semibold" : string.Empty;
+
+        return $"{GetCellBoxClass(rowIndex, GetCellContentAlignment(column))} {cellText}";
+    }
+
+    private string GetCellBoxClass(int rowIndex, string textAlignment)
+    {
+        var backgroundColor = Parameters?.Striped == true ? rowIndex % 2 == 0 ? "bg-white" : "bg-zinc-50" : "bg-white";
+
+        return $"{backgroundColor} {textAlignment} {GetCellSpacing()} text-zinc-800 truncate flex items-center group-hover:bg-zinc-100";
+    }
+
+    private static string GetCellContentAlignment(MaviGridColumn column)
+    {
+        switch (column.HorizontalTextAlignment)
+        {
+            case HorizontalPosition.Left:
+                return "justify-start";
+            case HorizontalPosition.Center:
+                return "justify-center";
+            case HorizontalPosition.Right:
+                return "justify-end";
+            default:
+                return "justify-start";
+        }
+    }
+
+    private static string GetColumnHeaderCss(MaviGridColumn column)
+    {
+
+        return $"{Tailwind.Theme.Colors.Text.THEME_DEFAULT_NINE_TEXT} flex items-center {GetColumnHeaderHorizontalAlignmentCss(column)}";
+    }
+
+    private static string GetColumnHeaderHorizontalAlignmentCss(MaviGridColumn column)
+    {
+        switch (column.HorizontalTextAlignment)
+        {
+            case HorizontalPosition.Left:
+                return "justify-start";
+            case HorizontalPosition.Center:
+                return "justify-center";
+            case HorizontalPosition.Right:
+                return "justify-end";
+            default:
+                return "justify-start";
+        }
+    }
+
+    private string GetMainContextMenuCss()
+    {
+        return _contextMenuVisible ? GetContextMenuDropDownCss() : "hidden";
+    }
+
+    // Replace absolute right-0 → fixed, raise z-index
+    private string GetContextMenuDropDownCss()
+    {
+        if (string.IsNullOrWhiteSpace(_gridState.ContextMenuDropDownCss))
+        {
+            _gridState.ContextMenuDropDownCss = Tailwind.Theme.Colors.Background.THEME_DEFAULT_ONE_BG + " " +
+                                      Tailwind.Theme.Colors.Border.THEME_DEFAULT_THREE_BORDER +
+                                      " fixed w-64 border rounded-lg shadow-lg z-[9999] p-2";
+        }
+
+        return _gridState.ContextMenuDropDownCss;
+    
+    }
+
+    private string GetMainContextMenuStyle() => _gridState.MmainMenuDropdownPositionStyle;
+    private string GetRowContextMenuStyle(MaviGridRow<TKey>? row) =>
+        row is { ContextMenuVisible: true } ? _gridState.ActiveRowMenuDropdownPositionStyle : string.Empty;
+
+    // Simplify — remove the bottom-full hack entirely
+    private string GetRowContextMenuCss(MaviGridRow<TKey>? row, int rowIndex)
+        => row is { ContextMenuVisible: true } ? GetContextMenuDropDownCss() : "hidden";
+
+    private string GetColumnHeaderContainerCss(MaviGridColumn column)
+    {
+        return $"{GetCellSpacing()} truncate flex items-center {GetCellContentAlignment(column)}";
+    }
+
+    private string GetCellSpacing()
+    {
+        if (string.IsNullOrWhiteSpace(_gridState.CellSpacing))
+        {
+            _gridState.CellSpacing = Parameters?.Condensed == true ? "px-2 py-1.5" : "px-4 py-3";
+        }
+
+        return _gridState.CellSpacing;
+    }
+
+    private IconSize GetIconSize()
+    {
+        _gridState.IconSize ??= Parameters?.Condensed == true ? IconSize.ExtraSmall : IconSize.Small;
+
+        return _gridState.IconSize.Value;
+    }
+
+    private string GetContextTextSize()
+    {
+        if (string.IsNullOrWhiteSpace(_gridState.ContextTextSize))
+        {
+            _gridState.ContextTextSize = Parameters?.Condensed == true ? Tailwind.Theme.Typography.BODY_SMALL : Tailwind.Theme.Typography.BODY_MEDIUM;
+        }
+
+        return _gridState.ContextTextSize;
+    }
+
+    private string GetPaginationTextCss()
+    {
+        return GetContextTextSize() + " " + Tailwind.Theme.Colors.Text.THEME_DEFAULT_EIGHT_TEXT;
+    }
+
+    private string GetCountPerPageSelectCss()
+    {
+        if (string.IsNullOrWhiteSpace(_gridState.CountPerPageDropdownCss))
+        {
+            _gridState.CountPerPageDropdownCss = GetContextTextSize() + " " +
+                                       Tailwind.Theme.Colors.Text.THEME_DEFAULT_NINE_TEXT + " " +
+                                       Tailwind.Theme.Colors.Background.THEME_DEFAULT_ONE_BG + " " +
+                                       Tailwind.Theme.Colors.Border.THEME_DEFAULT_THREE_BORDER + " " +
+                                       Tailwind.Theme.Colors.Ring.Focus.THEME_PRIMARY_SIX_RING_FOCUS + " " +
+                                       "border rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 " +
+                                       "transition-shadow w-[70px]";
+        }
+
+
+        return _gridState.CountPerPageDropdownCss;
+    }
+
+    private string GetContextMenuCellCss()
+    {
+        if (string.IsNullOrWhiteSpace(_gridState.ContextMenuCellCss))
+        {
+            _gridState.ContextMenuCellCss = $"{GetCellSpacing()} truncate text-right";
+        }
+        return _gridState.ContextMenuCellCss;
+    }
+
+    private string GetFooterRowCss()
+    {
+        if (string.IsNullOrWhiteSpace(_gridState.FooterRowCss))
+        {
+            _gridState.FooterRowCss = $"bg-white {GetCellSpacing()} flex items-center justify-between w-full min-w-80";
+        }
+
+        return _gridState.FooterRowCss;
+    }
+
+    private string GetSearchInputCss()
+    {
+        if (string.IsNullOrWhiteSpace(_gridState.SearchInputCss))
+        {
+            _gridState.SearchInputCss = Tailwind.Theme.Typography.BODY_SMALL + " " +
+                                        Tailwind.Theme.Colors.Text.THEME_DEFAULT_NINE_TEXT + " " +
+                                        Tailwind.Theme.Colors.Border.THEME_DEFAULT_THREE_BORDER + " " +
+                                        Tailwind.Theme.Colors.Ring.Focus.THEME_PRIMARY_SIX_RING_FOCUS +
+                                        " bg-white border px-2 py-1 w-full focus:outline-none focus:ring-2 placeholder:text-(--theme-default-five)";
+        }
+
+        return _gridState.SearchInputCss;
+    }
+
+    #endregion
 }

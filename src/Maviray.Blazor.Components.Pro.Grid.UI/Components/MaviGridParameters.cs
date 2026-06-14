@@ -1,6 +1,8 @@
-﻿namespace Maviray.Blazor.Components.Pro.Grid.UI.Components;
+﻿using Maviray.Blazor.Components.Core.Models.Tables;
 
-public class MaviGridParameters
+namespace Maviray.Blazor.Components.Pro.Grid.UI.Components;
+
+public class MaviGridParameters : TableParameters
 {
     
 }
