@@ -1,4 +1,5 @@
-﻿@using Maviray.Blazor.Components.Core.Enums
+﻿@using Maviray.Blazor.Components.Core.Constants
+@using Maviray.Blazor.Components.Core.Enums
 @using Maviray.Blazor.Components.Core.EventArgs
 @using Maviray.Blazor.Components.Core.Extensions
 @using Maviray.Blazor.Components.Core.Models.Tables
@@ -12,6 +13,7 @@
 @using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 @inherits Maviray.Blazor.Components.Core.Components.MaviComponentBase
 @typeparam TDataItem where TDataItem : class
 @typeparam TModel where TModel : class, IGridCollectionModel<TDataItem, TKey>
@@ -22,7 +24,7 @@
                   Opacity="BackdropOpacity.Lighten"
                   ZIndex="ZIndex.Fifty"
                   CloseOnBackdropClick="false"
-                  InitiallyActive="true"
+                  InitiallyActive="_gridState.BackdropInitialState"
                   CenterContent="true">
         <MaviSpinnerStarRotate ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Regular" />
     </MaviBackdrop>
@@ -182,7 +184,7 @@
                     <div class="flex items-center gap-3">
                         @if (_collection is { Rows.Count: > 0 })
                         {
-                            <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
+                            <div class="rounded-full p-1 size-6 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
                                 <MaviIconOnline IconOnlineType="IconOnlineType.ChevronLeftOnline"
                                                 IconColor="ElementColor.DimGrey"
                                                 IconSize="GetIconSize()"
@@ -191,7 +193,7 @@
                             <span class="@GetPaginationTextCss()">
                                 @_collection?.FirstRowIndex–@_collection?.LastRowIndex of @_collection?.TotalRows
                             </span>
-                            <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
+                            <div class="rounded-full p-1 size-6 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
                                 <MaviIconOnline IconOnlineType="IconOnlineType.ChevronRightOnline"
                                                 IconColor="ElementColor.DimGrey"
                                                 IconSize="GetIconSize()"
@@ -221,9 +223,6 @@
 
 @code
 {
-    private bool _needsRender = true;
-    private bool _contextMenuVisible = false;
-
     private int VisibleColumnsCount => GetVisibleColumns().Count + 1;
 
     private readonly MaviGridState _gridState = new();
@@ -235,6 +234,15 @@
     private MaviBackdrop? _maviBackdrop;
 
     private IEnumerable<IMaviButton>? _mainContextMenu;
+
+    private DotNetObjectReference<MaviGrid<TDataItem, TModel, TKey>>? _dotNetRef;
+
+    private readonly MaviGridDataQueryParameters _queryParameters = new();
+
+    private CancellationTokenSource? _filterDebounceCts;
+
+    [Inject]
+    protected IJSRuntime? JsRuntime { get; set; }
 
     [Parameter]
     public MaviGridParameters Parameters { get; set; } = new();
@@ -279,44 +287,72 @@
         await RefreshTable();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await SubscribeElements();
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
     #endregion
 
     #region Main Actions
-    public virtual async Task Refresh()
+    public async Task Refresh()
     {
         await RefreshTable();
 
-        _needsRender = true;
+        _gridState.NeedsRender = true;
         StateHasChanged();
     }
 
     private async Task RefreshTable()
     {
-        await BuildCollection();
-        await BuildContextMenu();
+        try
+        {
+            _maviBackdrop?.Display();
+
+            await BuildCollection();
+            await BuildContextMenu();
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, "An error occurred while refreshing the grid.");
+        }
+        finally
+        {
+            _maviBackdrop?.Hide();
+            _gridState.BackdropInitialState = false;
+        }
+
     }
 
-    protected virtual async Task BuildCollection()
+    protected async Task BuildCollection()
     {
         try
         {
             if (FetchData != null)
-            {
-                var parameters = new MaviGridDataQueryParameters();
+            {     
+                // if (_collection != null)
+                // {
+                //     _queryParameters.OrderByColumnKey = _collection.SortColumnKey;
+                //     _queryParameters.SortOrder = _collection.SortOrder;
+                //     _queryParameters.NumberOfItemsPerPage = _collection.Take;
+                //     _queryParameters.PageNumber = _collection.CurrentPage;
+                // }
 
-                if (_collection != null)
-                {
-                    parameters.OrderByColumnKey = _collection.SortColumnKey;
-                    parameters.SortOrder = _collection.SortOrder;
-                    parameters.NumberOfItemsPerPage = _collection.Take;
-                    parameters.PageNumber = _collection.CurrentPage;
-                }
-
-                _collection = await FetchData.Invoke(parameters);
-                _needsRender = true;
+                _collection = await FetchData.Invoke(_queryParameters);
+                _gridState.NeedsRender = true;
             }
 
             _visibleColumnsCache = null;
+
+            if (EnableLifeCycleLogging)
+            {
+                Logger?.LogDebugLifeCycle(Id, GetType());
+            }
         }
         catch (Exception ex)
         {
@@ -324,13 +360,18 @@
         }
     }
 
-    protected virtual async Task BuildContextMenu()
+    protected async Task BuildContextMenu()
     {
         if (ConstructMainContextMenu != null)
         {
             try
             {
                 _mainContextMenu = await ConstructMainContextMenu.Invoke();
+
+                if (EnableLifeCycleLogging)
+                {
+                    Logger?.LogDebugLifeCycle(Id, GetType());
+                }
             }
             catch (Exception ex)
             {
@@ -339,18 +380,25 @@
         }
     }
 
-    protected virtual async Task RowContextMenuItemClick(MouseEventArgs args, MaviGridRow<TKey> row, IMaviRowContextMenuItem<TKey>? action)
+    protected async Task RowContextMenuItemClick(MouseEventArgs args, MaviGridRow<TKey> row, IMaviRowContextMenuItem<TKey>? action)
     {
-        row.ContextMenuVisible = false;
-
-        if (OnRowContextMenuClick.HasDelegate)
+        try
         {
-            await OnRowContextMenuClick.InvokeAsync(action);
+            row.ContextMenuVisible = false;
+
+            if (OnRowContextMenuClick.HasDelegate)
+            {
+                await OnRowContextMenuClick.InvokeAsync(action);
+            }
+
+            if (EnableLifeCycleLogging)
+            {
+                Logger?.LogDebugLifeCycle(Id, GetType());
+            }
         }
-
-        if (EnableLifeCycleLogging)
+        catch (Exception ex)
         {
-            Logger?.LogDebugLifeCycle(Id, GetType());
+            Logger?.Error(ex, "An error occurred while handling row context menu item click.");
         }
     }
 
@@ -376,54 +424,214 @@
         return _visibleColumnsCache == null ? Array.Empty<MaviGridColumn>() : _visibleColumnsCache;
     }
 
-    protected virtual async Task PrevPage()
+    protected async Task PrevPage()
     {
+        try
+        {
+            if (_queryParameters.PageNumber > 1)
+            {
+                _queryParameters.PageNumber--;
+                await RefreshTable();
 
+                if (EnableLifeCycleLogging)
+                {
+                    Logger?.LogDebugLifeCycle(Id, GetType());
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, "An error occurred while navigating to the previous page.");
+        }
     }
 
-    protected virtual async Task NextPage()
+    protected async Task NextPage()
     {
+        try
+        {
+            if (_collection is not null)
+            {
+                var totalPages = _collection.TotalPages;
 
+                if (_queryParameters.PageNumber < totalPages)
+                {
+                    _queryParameters.PageNumber++;
+                    await RefreshTable();
+                }
+
+                if (EnableLifeCycleLogging)
+                {
+                    Logger?.LogDebugLifeCycle(Id, GetType());
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, "An error occurred while navigating to the next page.");
+        }
     }
 
-    protected virtual void SortByColumn(string columnKey)
+    protected async Task SortByColumn(string columnKey)
     {
+        try
+        {
+            if (_queryParameters.OrderByColumnKey == columnKey)
+            {
+                _queryParameters.SortOrder = _queryParameters.SortOrder == SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;
+            }
+            else
+            {
+                _queryParameters.OrderByColumnKey = columnKey;
+                _queryParameters.SortOrder = SortOrder.Ascending;
+            }
 
+            await RefreshTable();
+
+            if (EnableLifeCycleLogging)
+            {
+                Logger?.LogDebugLifeCycle(Id, GetType());
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, $"An error occurred while sorting by column with key '{columnKey}'.");
+        }
     }
 
-    protected virtual async Task UpdatePageSize(ChangeEventArgs e)
+    protected async Task UpdatePageSize(ChangeEventArgs e)
     {
+        try
+        {
+            if (!int.TryParse(e?.Value?.ToString(), out var newSize))
+            {
+                return;
+            }
 
+            _queryParameters.NumberOfItemsPerPage = newSize;
+
+            await RefreshTable();
+
+            if (EnableLifeCycleLogging)
+            {
+                Logger?.LogDebugLifeCycle(Id, GetType());
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, "An error occurred while updating the page size.");
+        }
     }
 
-    protected virtual void ToggleMainContextMenuDropDown(MouseClickEventArgs mouseEventArgs)
+    protected void ToggleMainContextMenuDropDown(MouseClickEventArgs mouseEventArgs)
     {
+        try
+        {
 
+        }
+        catch (Exception ex)
+        {
+
+        }
     }
 
-    protected virtual void ToggleRowContextMenuDropDown(MaviTableRow row, MouseClickEventArgs mouseEventArgs)
+    protected void ToggleRowContextMenuDropDown(MaviTableRow row, MouseClickEventArgs mouseEventArgs)
     {
+        try
+        {
 
+        }
+        catch (Exception ex)
+        {
+
+        }
     }
 
-    protected virtual async Task ContextMenuClick(IMaviButton? action)
+    protected async Task ContextMenuClick(IMaviButton? action)
     {
+        try
+        {
+            if (OnMainContextMenuButtonClick.HasDelegate)
+            {
+                await OnMainContextMenuButtonClick.InvokeAsync(action);
+            }
 
+            if (EnableLifeCycleLogging)
+            {
+                Logger?.LogDebugLifeCycle(Id, GetType());
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, "An error occurred while handling the main context menu button click.");
+        }
     }
 
-    protected virtual async Task RowClick(MaviGridRow<TKey> row, MaviGridColumn column)
+    protected async Task RowClick(MaviGridRow<TKey> row, MaviGridColumn column)
     {
-
+        try
+        {
+            if (EnableLifeCycleLogging)
+            {
+                Logger?.LogDebugLifeCycle(Id, GetType());
+            }
+        }
+        catch (Exception ex)
+        {
+           Logger?.Error(ex, "An error occurred while handling the row click.");
+        }
     }
 
-    protected virtual async Task RowContextMenuItemClick(MouseEventArgs args, MaviGridRow<TKey> row, MaviTableRowContextMenuItem? action)
+    protected void UpdateColumnFilter(string columnKey, ChangeEventArgs args)
     {
+        // Capture the latest value and restart the debounce timer. The filter is only
+        // applied once the user pauses typing for FilterDebounceMilliseconds.
+        var filterText = args.Value?.ToString() ?? string.Empty;
 
+        _filterDebounceCts?.Cancel();
+        _filterDebounceCts?.Dispose();
+        _filterDebounceCts = new CancellationTokenSource();
+
+        _ = ApplyColumnFilterDebouncedAsync(columnKey, filterText, _filterDebounceCts.Token);
     }
 
-    protected virtual void UpdateColumnFilter(string columnKey, ChangeEventArgs args)
+    private async Task ApplyColumnFilterDebouncedAsync(string columnKey, string filterText, CancellationToken token)
     {
+        try
+        {
+            await Task.Delay(Parameters?.FilterDebounceMilliseconds ?? 400, token);
 
+            if (string.IsNullOrWhiteSpace(filterText))
+            {
+                _queryParameters.RemoveFilter(columnKey);
+            }
+            else
+            {
+                _queryParameters.AddFilter(columnKey, filterText);
+            }
+
+            // Continuation runs off the renderer's sync context, so marshal back before
+            // touching component state and triggering a re-render.
+            await InvokeAsync(async () =>
+            {
+                await RefreshTable();
+
+                _gridState.NeedsRender = true;
+                StateHasChanged();
+            });
+
+            if (EnableLifeCycleLogging)
+            {
+                Logger?.LogDebugLifeCycle(Id, GetType());
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer keystroke superseded this one; nothing to do.
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, $"An error occurred while updating the filter for column with key '{columnKey}'.");
+        }
     }
 
     protected string TrimCellValue(MaviGridCell<TKey>? cell)
@@ -435,9 +643,9 @@
 
     protected override bool ShouldRender()
     {
-        if (!_needsRender) return false;
+        if (!_gridState.NeedsRender) return false;
 
-        _needsRender = false;
+        _gridState.NeedsRender = false;
         return true;
     }
 
@@ -497,7 +705,7 @@
 
     private string GetMainContextMenuCss()
     {
-        return _contextMenuVisible ? GetContextMenuDropDownCss() : "hidden";
+        return _gridState.ContextMenuVisible? GetContextMenuDropDownCss() : "hidden";
     }
 
     // Replace absolute right-0 → fixed, raise z-index
@@ -607,6 +815,100 @@
         }
 
         return _gridState.SearchInputCss;
+    }
+
+    #endregion
+
+    #region handle outside click
+
+    protected async Task SubscribeElements()
+    {
+        try
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+
+            if (JsRuntime != null)
+            {
+                await JsRuntime.InvokeVoidAsync(
+                    JsInteropConstants.REGISTER_OUT_OF_FOCUS_CALLBACK_LISTENER,
+                    Id,
+                    _dotNetRef,
+                    "HandleOutsideClick");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, ex.Message);
+        }
+    }
+
+    [JSInvokable]
+    public void HandleOutsideClick(string clickedMenuId)
+    {
+        try
+        {
+            // Close main menu if the click was NOT inside it
+            if (clickedMenuId != _gridState.ContextMenuId)
+            {
+                _gridState.ContextMenuVisible = false;
+            }
+
+            // Close all row menus that were NOT clicked
+            if (_collection != null)
+            {
+                foreach (var row in _collection.Rows.Where(row => clickedMenuId != row.ContextMenuId))
+                {
+                    row.ContextMenuVisible = false;
+                }
+            }
+
+            _gridState.NeedsRender = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, ex.Message);
+        }
+    }
+
+    private bool _disposed;
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (HasRendered && JsRuntime != null)
+            {
+                await JsRuntime.InvokeVoidAsync(
+                    JsInteropConstants.UN_REGISTER_OUT_OF_FOCUS_CALLBACK_LISTENER,
+                    Id);
+            }
+
+            _dotNetRef?.Dispose();
+
+            if (_filterDebounceCts is not null)
+            {
+                await _filterDebounceCts.CancelAsync();
+                _filterDebounceCts.Dispose();
+            }
+
+            _disposed = true;
+            GC.SuppressFinalize(this);
+
+            if (EnableLifeCycleLogging)
+            {
+                Logger?.LogDebugLifeCycle(Id, GetType());
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, ex.Message);
+        }
     }
 
     #endregion

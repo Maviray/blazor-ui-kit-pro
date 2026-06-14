@@ -9,13 +9,18 @@
 <PageTitle>Home</PageTitle>
 
 <div class="p-4">
-    <MaviGrid @ref="_grid" TDataItem="DbSampleItemOne" TModel="DbSampleItemOneModel" TKey="int" FetchData="FetchGridData">
+    <MaviGrid @ref="_grid" TDataItem="DbSampleItemOne" TModel="DbSampleItemOneModel" TKey="int" FetchData="FetchGridData" Parameters="_gridParameters">
 
     </MaviGrid>
 </div>
 
 @code
 {
+    private readonly MaviGridParameters _gridParameters = new()
+    {
+       EnableFilters = true
+    };
+
     private MaviGrid<DbSampleItemOne, DbSampleItemOneModel, int>? _grid;
 
     [Inject]
