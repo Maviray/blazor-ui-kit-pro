@@ -12,6 +12,7 @@
 @using Maviray.Blazor.Components.Pro.Core.Interfaces
 @using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 @inherits Maviray.Blazor.Components.Core.Components.MaviComponentBase
@@ -589,7 +590,7 @@
 
         _filterDebounceCts?.Cancel();
         _filterDebounceCts?.Dispose();
-        _filterDebounceCts = new CancellationTokenSource();
+        _filterDebounceCts = new();
 
         _ = ApplyColumnFilterDebouncedAsync(columnKey, filterText, _filterDebounceCts.Token);
     }
@@ -606,7 +607,7 @@
             }
             else
             {
-                _queryParameters.AddFilter(columnKey, filterText);
+                _queryParameters.AddFilter(columnKey, filterText, MaviGridFilterCriteria.Equals);
             }
 
             // Continuation runs off the renderer's sync context, so marshal back before

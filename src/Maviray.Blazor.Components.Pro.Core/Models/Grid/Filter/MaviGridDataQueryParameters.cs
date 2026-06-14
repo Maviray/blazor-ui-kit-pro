@@ -1,7 +1,7 @@
 ﻿using Maviray.Blazor.Components.Core.Enums;
-using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter;
+using Maviray.Blazor.Components.Pro.Core.Enums.Grid;
 
-namespace Maviray.Blazor.Components.Pro.Core.Enums.Grid;
+namespace Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter;
 
 public class MaviGridDataQueryParameters
 {
@@ -11,7 +11,7 @@ public class MaviGridDataQueryParameters
     public string? OrderByColumnKey { get; set; }
     public List<GridFilterModel>? Filters { get; set; }
 
-    public void AddFilter(string columnKey, string filterValue)
+    public void AddFilter(string columnKey, string filterValue, MaviGridFilterCriteria gridFilterCriteria)
     {
         Filters ??= [];
 
@@ -19,11 +19,12 @@ public class MaviGridDataQueryParameters
 
         if (existingFilter == null)
         {
-            existingFilter = new() { Key = columnKey, Value = filterValue };
+            existingFilter = new() { Key = columnKey };
             Filters.Add(existingFilter);
         }
 
         existingFilter.Value = filterValue;
+        existingFilter.GridFilterCriteria = gridFilterCriteria;
     }
 
     public void RemoveFilter(string columnKey)

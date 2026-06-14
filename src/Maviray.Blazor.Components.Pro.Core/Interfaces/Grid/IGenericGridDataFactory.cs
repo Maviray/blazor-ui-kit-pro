@@ -1,5 +1,5 @@
-﻿using Maviray.Blazor.Components.Pro.Core.Enums.Grid;
-using Maviray.Blazor.Components.Pro.Core.Models.Grid;
+﻿using Maviray.Blazor.Components.Pro.Core.Models.Grid;
+using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter;
 
 namespace Maviray.Blazor.Components.Pro.Core.Interfaces.Grid;
 

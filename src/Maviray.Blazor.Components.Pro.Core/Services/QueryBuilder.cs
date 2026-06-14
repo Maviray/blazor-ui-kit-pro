@@ -1,5 +1,6 @@
 ﻿using Maviray.Blazor.Components.Pro.Core.Constants;
 using Maviray.Blazor.Components.Pro.Core.Enums.Grid;
+using System.Globalization;
 using System.Linq.Expressions;
 
 namespace Maviray.Blazor.Components.Pro.Core.Services;
@@ -75,15 +76,40 @@ public class QueryBuilder<TDataItem, TKey> where TDataItem : class where TKey : 
     {
         var propertyType = Nullable.GetUnderlyingType(property.Type) ?? property.Type;
 
-        // Handle enum parsing
-        if (propertyType.IsEnum && value is string enumValue)
+        // The comparison constant is always built as the enum CLR type, so EF Core translates it
+        // according to the column's value converter - a numeric column compares against the
+        // underlying number, a string column compares against the member name. We just have to
+        // coerce the incoming filter value (which may be a member name, a numeric string, or a
+        // boxed numeric value) into the matching enum member first.
+        var coercedValue = propertyType.IsEnum
+            ? ConvertToEnum(propertyType, value)
+            : Convert.ChangeType(value, propertyType, CultureInfo.InvariantCulture);
+
+        var convertedValue = Expression.Constant(coercedValue, property.Type);
+        return (propertyType, convertedValue);
+    }
+
+    private static object ConvertToEnum(Type enumType, object value)
+    {
+        // Already the right enum (e.g. passed through strongly typed).
+        if (value.GetType() == enumType)
         {
-            value = Enum.Parse(propertyType, enumValue);
+            return value;
         }
 
-        // Ensure value is correctly converted
-        var convertedValue = Expression.Constant(Convert.ChangeType(value, propertyType), property.Type);
-        return (propertyType, convertedValue);
+        // A string can be either the member name ("Active") or the numeric value ("2");
+        // Enum.Parse handles both, and ignoreCase makes name matching forgiving.
+        if (value is string text)
+        {
+            return Enum.Parse(enumType, text.Trim(), ignoreCase: true);
+        }
+
+        // Any other value is treated as the enum's underlying numeric value (int, long, byte, ...),
+        // which is the form a number-backed column hands back. Enum.ToObject is the reliable path
+        // here - Convert.ChangeType does not convert numbers to enum types.
+        var underlyingType = Enum.GetUnderlyingType(enumType);
+        var numericValue = Convert.ChangeType(value, underlyingType, CultureInfo.InvariantCulture);
+        return Enum.ToObject(enumType, numericValue);
     }
 
     private static Expression BuildStringMethodExpression(Expression property, string methodName, object value)
