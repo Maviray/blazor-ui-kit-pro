@@ -15,6 +15,7 @@
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
+@using System.Globalization
 @inherits Maviray.Blazor.Components.Core.Components.MaviComponentBase
 @typeparam TDataItem where TDataItem : class
 @typeparam TModel where TModel : class, IGridCollectionModel<TDataItem, TKey>
@@ -336,14 +337,6 @@
         {
             if (FetchData != null)
             {     
-                // if (_collection != null)
-                // {
-                //     _queryParameters.OrderByColumnKey = _collection.SortColumnKey;
-                //     _queryParameters.SortOrder = _collection.SortOrder;
-                //     _queryParameters.NumberOfItemsPerPage = _collection.Take;
-                //     _queryParameters.PageNumber = _collection.CurrentPage;
-                // }
-
                 _collection = await FetchData.Invoke(_queryParameters);
                 _gridState.NeedsRender = true;
             }
@@ -607,7 +600,19 @@
             }
             else
             {
-                _queryParameters.AddFilter(columnKey, filterText, MaviGridFilterCriteria.Equals);
+                var column = _collection?.Columns.FirstOrDefault(c => c.Key == columnKey);
+
+                if (column != null && TryResolveColumnFilter(column, filterText, out var criteria, out var value))
+                {
+                    _queryParameters.AddFilter(columnKey, value, criteria);
+                }
+                else
+                {
+                    // The typed text does not resolve to a concrete filter for this column type
+                    // (a non-numeric number, or a label that matches no bool/enum option). Drop the
+                    // column filter rather than building an expression the query builder cannot run.
+                    _queryParameters.RemoveFilter(columnKey);
+                }
             }
 
             // Continuation runs off the renderer's sync context, so marshal back before
@@ -634,6 +639,97 @@
             Logger?.Error(ex, $"An error occurred while updating the filter for column with key '{columnKey}'.");
         }
     }
+
+    /// <summary>
+    /// Translates a typed-in filter fragment into the filter criteria and value appropriate for the
+    /// column's data type. Strings use a substring match; numeric and date columns use equality; bool
+    /// and enum columns match the typed fragment against their user-facing labels and translate it to
+    /// the underlying value. Returns false when the text cannot be resolved to a concrete filter.
+    /// </summary>
+    private static bool TryResolveColumnFilter(MaviGridColumn column, string filterText, out MaviGridFilterCriteria criteria, out string value)
+    {
+        var text = filterText.Trim();
+
+        // Equality is the default; only string columns do a partial (Contains) match.
+        criteria = MaviGridFilterCriteria.Equals;
+        value = text;
+
+        switch (column.GridPropertyType)
+        {
+            case MaviGridPropertyType.String:
+            case MaviGridPropertyType.NavString:
+                criteria = MaviGridFilterCriteria.Contains;
+                return true;
+
+            case MaviGridPropertyType.Int:
+            case MaviGridPropertyType.NavInt:
+                return long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
+
+            case MaviGridPropertyType.Decimal:
+            case MaviGridPropertyType.NavDecimal:
+                return decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out _);
+
+            case MaviGridPropertyType.Bool:
+            case MaviGridPropertyType.NavBool:
+                return TryResolveBoolFilter(column, text, out value);
+
+            case MaviGridPropertyType.Enum:
+            case MaviGridPropertyType.NavEnum:
+                return TryResolveEnumFilter(column, text, out value);
+
+            default:
+                // DateTime / Undefined: let the query builder coerce the text on equality.
+                return true;
+        }
+    }
+
+    private static bool TryResolveBoolFilter(MaviGridColumn column, string text, out string value)
+    {
+        // Match the typed fragment against the user-facing positive / negative labels and translate
+        // to the bool the query builder understands. Positive is checked first to break ambiguity.
+        var positive = column.BoolPositiveDisplay ?? bool.TrueString;
+        var negative = column.BoolNegativeDisplay ?? bool.FalseString;
+
+        if (LabelContains(positive, text))
+        {
+            value = bool.TrueString;
+            return true;
+        }
+
+        if (LabelContains(negative, text))
+        {
+            value = bool.FalseString;
+            return true;
+        }
+
+        value = text;
+        return false;
+    }
+
+    private static bool TryResolveEnumFilter(MaviGridColumn column, string text, out string value)
+    {
+        // PossibleFilterValues maps each enum member name (key) to its display text (value, which
+        // falls back to the member name when no [Display] attribute is present). Match the typed
+        // fragment against the display text and translate to the member name, which the query builder
+        // parses back into the concrete enum member.
+        if (column.PossibleFilterValues != null)
+        {
+            foreach (var option in column.PossibleFilterValues)
+            {
+                if (LabelContains(option.Value, text))
+                {
+                    value = option.Key;
+                    return true;
+                }
+            }
+        }
+
+        value = text;
+        return false;
+    }
+
+    private static bool LabelContains(string? label, string text)
+        => !string.IsNullOrEmpty(label) && label.Contains(text, StringComparison.OrdinalIgnoreCase);
 
     protected string TrimCellValue(MaviGridCell<TKey>? cell)
     {
