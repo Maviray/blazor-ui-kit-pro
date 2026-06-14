@@ -6,17 +6,17 @@ namespace Maviray.Blazor.Components.Pro.Core.Attributes.Grid;
 public class GridDataPropertyAttribute : Attribute
 {
     public int Sequence { get; init; }
-    public MaviGridCellType CellType { get; init; }
+    public MaviGridColumnCellBehavior ColumnCellBehavior { get; init; }
 
     public GridDataPropertyAttribute(int sequence)
     {
         Sequence = sequence;
-        CellType = MaviGridCellType.Default;
+        ColumnCellBehavior = MaviGridColumnCellBehavior.Default;
     }
 
-    public GridDataPropertyAttribute(int sequence, MaviGridCellType cellType)
+    public GridDataPropertyAttribute(int sequence, MaviGridColumnCellBehavior cellType)
     {
         Sequence = sequence;
-        CellType = cellType;
+        ColumnCellBehavior = cellType;
     }
 }

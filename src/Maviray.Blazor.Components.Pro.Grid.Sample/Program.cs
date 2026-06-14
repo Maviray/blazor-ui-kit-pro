@@ -1,9 +1,10 @@
+using Maviray.Blazor.Components.Core.Extensions;
 using Maviray.Blazor.Components.Pro.Core.Extensions;
 using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid;
 using Maviray.Blazor.Components.Pro.Grid.Sample.Components;
-using Maviray.Blazor.Components.Pro.Grid.Sample.Services;
 using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Context;
 using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Seeding;
+using Maviray.Blazor.Components.Pro.Grid.Sample.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Maviray.Blazor.Components.Pro.Grid.Sample
@@ -21,7 +22,11 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample
             builder.Services.AddDbContextFactory<SampleDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("SampleDb")));
 
+            builder.Services.AddMaviComponents(options => options.EnableLifecycleLogging = false);
+
             builder.Services.RegisterGridDataFactory();
+
+            builder.Services.AddLogging();
 
             builder.Services.AddTransient(
                 typeof(IGridDataSource<>),

@@ -12,12 +12,12 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
     private const string DB_SET_NULL = "DB Set is empty or null.";
 
     private readonly IDbContextFactory<TDbContext> _contextFactory;
-    private readonly ILogger _logger;
+    private readonly ILogger<EntityFrameworkGridDataSource<TDataItem, TDbContext>> _logger;
 
     private TDbContext? _dbContext;
     private DbSet<TDataItem>? _dbSet;
 
-    public EntityFrameworkGridDataSource(IDbContextFactory<TDbContext> dbContextFactory, ILogger logger)
+    public EntityFrameworkGridDataSource(IDbContextFactory<TDbContext> dbContextFactory, ILogger<EntityFrameworkGridDataSource<TDataItem, TDbContext>> logger)
     {
         _contextFactory = dbContextFactory;
         _logger = logger;
@@ -40,10 +40,17 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
 
         if (filter == null)
         {
+            _logger.LogInformation
+                ("Counting items in the data source.");
+
             return await _dbSet.CountAsync();
         }
         else
         {
+            _logger.LogInformation(
+                "Counting items in the data source. Filter: {Filter}",
+                filter.ToString());
+
             return await _dbSet.Where(filter).CountAsync();
         }
     }
@@ -56,6 +63,14 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
         {
             throw new InvalidOperationException(DB_SET_NULL);
         }
+
+        _logger.LogInformation(
+            "Getting items from data source. SortOrder: {SortOrder}, OrderBy: {OrderBy}, Skip: {Skip}, Take: {Take}, Filter: {Filter}",
+            sortOrder,
+            orderBy,
+            skip,
+            numberOfItemsToTake,
+            filter?.ToString() ?? "none");
 
         return filter == null ? _dbSet.OrderByDynamic(orderBy, sortOrder).Skip(skip).Take(numberOfItemsToTake) : _dbSet.Where(filter).OrderByDynamic(orderBy, sortOrder).Skip(skip).Take(numberOfItemsToTake);
     }

@@ -5,4 +5,5 @@ public interface IMaviButton
     string? Key { get; set; }
     string? Title { get; set; }
     string? Css { get; set; }
+    public bool? Disabled { get; set; }
 }
