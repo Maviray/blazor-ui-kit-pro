@@ -1,0 +1,20 @@
+﻿@import "./maviray.material.theme.css";
+@import "./maviray.material.components.css";
+
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+
+@layer base {
+    html ul, html ol {
+        list-style: revert;
+        margin-left: 20px;
+        padding-left: 20px;
+    }
+}
+
+:root {
+    --font-lato: "Lato", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-montserrat: "Montserrat", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-oswald: "Oswald", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-roboto-serif: "Roboto Serif", Georgia, "Times New Roman", serif;   
+}
