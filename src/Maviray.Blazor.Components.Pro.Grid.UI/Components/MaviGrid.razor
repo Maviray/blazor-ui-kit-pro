@@ -544,20 +544,23 @@
         }
     }
 
-    protected async Task CellClick(MaviGridCell<TKey> cell)
+    protected async Task CellClick(MaviGridCell<TKey>? cell)
     {
         try
         {
-            if (OnCellClick.HasDelegate)
+            if (cell != null)
             {
-                var parameters = new CellClickParameters<TKey>
+                if (OnCellClick.HasDelegate)
                 {
-                    RowKey = cell.RowKey,
-                    ColumnKey = cell.ColumnKey,
-                    CellBehavior = cell.CellBehavior
-                };
+                    var parameters = new CellClickParameters<TKey>
+                    {
+                        RowKey = cell.RowKey,
+                        ColumnKey = cell.ColumnKey,
+                        CellBehavior = cell.CellBehavior
+                    };
 
-                await OnCellClick.InvokeAsync(parameters);
+                    await OnCellClick.InvokeAsync(parameters);
+                }
             }
 
             if (EnableLifeCycleLogging)
