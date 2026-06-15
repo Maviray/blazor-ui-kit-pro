@@ -5,6 +5,7 @@
 @using Maviray.Blazor.Components.Pro.Core.Models
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid.Menu
 @using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models
 @using Maviray.Blazor.Components.Pro.Grid.Sample.Models
 @using Maviray.Blazor.Components.Pro.Grid.UI.Components
@@ -18,7 +19,9 @@
               TKey="int" FetchData="FetchGridData" 
               Parameters="_gridParameters" 
               ConstructMainContextMenu="FetchGridMainMenu" 
-              OnMainContextMenuButtonClick="OnMainMenuItemClick">
+              OnMainContextMenuButtonClick="OnMainMenuItemClick" 
+              OnRowContextMenuClick="OnRowContextMenuClick"
+              OnCellClick="CellClick">
 
     </MaviGrid>
 </div>
@@ -35,6 +38,9 @@
 
     [Inject]
     private IGenericGridDataFactory<DbSampleItemOne, DbSampleItemOneModel, int>? DataFactory { get; set; }
+
+    [Inject]
+    private ILogger<Home>? Logger { get; set; }
 
     private async Task<MaviGridCollection<int>?> FetchGridData(MaviGridDataQueryParameters parameters)
     {
@@ -82,6 +88,8 @@
 
     private async Task OnMainMenuItemClick(IMaviContextMenuItem action)
     {
+        Logger?.LogInformation($"Main menu item clicked: {action.Key}");
+
         if (action.Key == "refresh")
         {
             if (_grid != null)
@@ -89,5 +97,19 @@
                 await _grid.Refresh();
             }
         }
+    }
+
+    private Task OnRowContextMenuClick(IMaviRowContextMenuItem<int> action)
+    {
+        Logger?.LogInformation($"row menu item clicked: {action.Key}");
+
+        return Task.CompletedTask;
+    }
+
+    private Task CellClick(CellClickParameters<int> parameters)
+    {
+        Logger?.LogInformation($"Cell clicked. Row: {parameters.RowKey}, Column: {parameters.ColumnKey}");
+
+        return Task.CompletedTask;
     }
 }
