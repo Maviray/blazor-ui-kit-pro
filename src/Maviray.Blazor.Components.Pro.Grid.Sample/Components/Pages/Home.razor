@@ -1,0 +1,115 @@
+﻿@page "/"
+@using Maviray.Blazor.Components.Core.Enums
+@using Maviray.Blazor.Components.Pro.Core.Interfaces
+@using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid
+@using Maviray.Blazor.Components.Pro.Core.Models
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid.Menu
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Models
+@using Maviray.Blazor.Components.Pro.Grid.UI.Components
+
+<PageTitle>Home</PageTitle>
+
+<div class="p-4">
+    <MaviGrid @ref="_grid" 
+              TDataItem="DbSampleItemOne"
+              TModel="DbSampleItemOneModel" 
+              TKey="int" FetchData="FetchGridData" 
+              Parameters="_gridParameters" 
+              ConstructMainContextMenu="FetchGridMainMenu" 
+              OnMainContextMenuButtonClick="OnMainMenuItemClick" 
+              OnRowContextMenuClick="OnRowContextMenuClick"
+              OnCellClick="CellClick">
+
+    </MaviGrid>
+</div>
+
+@code
+{
+    private readonly MaviGridParameters _gridParameters = new()
+    {
+       EnableFilters = true,
+       TableRowContextMenuDisplayStyle = TableRowContextMenuDisplayStyle.Icons
+    };
+
+    private MaviGrid<DbSampleItemOne, DbSampleItemOneModel, int>? _grid;
+
+    [Inject]
+    private IGenericGridDataFactory<DbSampleItemOne, DbSampleItemOneModel, int>? DataFactory { get; set; }
+
+    [Inject]
+    private ILogger<Home>? Logger { get; set; }
+
+    private async Task<MaviGridCollection<int>?> FetchGridData(MaviGridDataQueryParameters parameters)
+    {
+        if (string.IsNullOrWhiteSpace(parameters.OrderByColumnKey))
+        {
+            parameters.OrderByColumnKey = "Id";
+        }
+
+        if (DataFactory == null)
+        {
+            return null;
+        }
+
+        return await DataFactory.BuildDataCollection(parameters);
+    }
+
+    private Task<IEnumerable<IMaviContextMenuItem>> FetchGridMainMenu()
+    {
+        var items = new List<IMaviContextMenuItem>
+        {
+            new MaviContextMenuItem()
+            {
+                Key = "add",
+                Title = "Add"
+            },
+            new MaviContextMenuItem()
+            {
+                Key = "delete-selected",
+                Title = "Delete Selected"
+            },
+            new MaviContextMenuItem()
+            {
+                Key = "edit",
+                Title = "Edit"
+            },
+            new MaviContextMenuItem()
+            {
+                Key = "refresh",
+                Title = "Refresh"
+            }
+        };
+
+        return Task.FromResult(items.AsEnumerable());
+    }
+
+    private async Task OnMainMenuItemClick(IMaviContextMenuItem action)
+    {
+        Logger?.LogInformation($"Main menu item clicked: {action.Key}");
+
+        if (action.Key == "refresh")
+        {
+            if (_grid != null)
+            {
+                await _grid.Refresh();
+            }
+        }
+    }
+
+    private Task OnRowContextMenuClick(IMaviRowContextMenuItem<int> action)
+    {
+        Logger?.LogInformation($"row menu item clicked: {action.Key}");
+
+        return Task.CompletedTask;
+    }
+
+    private Task CellClick(CellClickParameters<int> parameters)
+    {
+        Logger?.LogInformation($"Cell clicked. Row: {parameters.RowKey}, Column: {parameters.ColumnKey}");
+
+        return Task.CompletedTask;
+    }
+}

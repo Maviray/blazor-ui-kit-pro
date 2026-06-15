@@ -1,0 +1,223 @@
+﻿@import "tailwindcss";
+
+@theme {
+    --header-height: 0px;
+    --footer-height: 0px;
+    /* Screen sizes */
+    --breakpoint-3xl: 112rem;
+    --breakpoint-4xl: 128rem;
+    --breakpoint-5xl: 144rem;
+    --breakpoint-6xl: 160rem;
+    --breakpoint-7xl: 176rem;
+    /* MUI Shadow Variables */
+    --mui-shadows-2: 0px 3px 1px -2px rgba(0,0,0,0.2), 0px 2px 2px 0px rgba(0,0,0,0.14), 0px 1px 5px 0px rgba(0,0,0,0.12);
+    --mui-shadows-4: 0px 2px 4px -1px rgba(0,0,0,0.2), 0px 4px 5px 0px rgba(0,0,0,0.14), 0px 1px 10px 0px rgba(0,0,0,0.12);
+    --mui-shadows-8: 0px 5px 5px -3px rgba(0,0,0,0.2), 0px 8px 10px 1px rgba(0,0,0,0.14), 0px 3px 14px 2px rgba(0,0,0,0.12);
+    /* Semantic font variables */
+    --font-ui: "Lato", system-ui, -apple-system, "Segoe UI", sans-serif; /* Body text, buttons, forms, general UI */
+    --font-heading: "Montserrat", system-ui, -apple-system, "Segoe UI", sans-serif; /* Page titles, section headings (h1-h3) */
+    --font-display: "Oswald", system-ui, -apple-system, "Segoe UI", sans-serif; /* Hero text, large promotional content */
+    --font-serif: "Roboto Serif", Georgia, "Times New Roman", serif; /* Editorial content, quotes, accent text */
+    /* Colors use CSS vars so runtime overrides work */
+    /* Default */
+    --theme-default-one: #FAFAFA;
+    --theme-default-two: #F0F0F0;
+    --theme-default-three: #E3E3E3;
+    --theme-default-four: #D6D6D6;
+    --theme-default-five: #BFBFBF;
+    --theme-default-six: #A6A6A6;
+    --theme-default-seven: #8C8C8C;
+    --theme-default-eight: #737373;
+    --theme-default-nine: #5C5C5C;
+    --theme-default-ten: #404040;
+    /* Primary - Blue (Material Blue) */
+    --theme-primary-one: #E3F2FD; /* Lightest tint */
+    --theme-primary-two: #BBDEFB; /* Very light */
+    --theme-primary-three: #90CAF9; /* Light */
+    --theme-primary-four: #64B5F6; /* Medium-light */
+    --theme-primary-five: #42A5F5; /* Medium */
+    --theme-primary-six: #2196F3; /* Medium-bright */
+    --theme-primary-seven: #1E88E5; /* Bright */
+    --theme-primary-eight: #1976D2; /* Base color (your selected shade) */
+    --theme-primary-nine: #1565C0; /* Dark */
+    --theme-primary-ten: #0D47A1; /* Darkest */
+    /* Secondary - Teal (Complementary to Primary) */
+    --theme-secondary-one: #E0F2F1;
+    --theme-secondary-two: #B2DFDB;
+    --theme-secondary-three: #80CBC4;
+    --theme-secondary-four: #4DB6AC;
+    --theme-secondary-five: #26A69A;
+    --theme-secondary-six: #009688;
+    --theme-secondary-seven: #00897B;
+    --theme-secondary-eight: #00796B;
+    --theme-secondary-nine: #00695C;
+    --theme-secondary-ten: #004D40;
+    /* Tertiary - Deep Purple (Triadic harmony) */
+    --theme-tertiary-one: #EDE7F6;
+    --theme-tertiary-two: #D1C4E9;
+    --theme-tertiary-three: #B39DDB;
+    --theme-tertiary-four: #9575CD;
+    --theme-tertiary-five: #7E57C2;
+    --theme-tertiary-six: #673AB7;
+    --theme-tertiary-seven: #5E35B1;
+    --theme-tertiary-eight: #512DA8;
+    --theme-tertiary-nine: #4527A0;
+    --theme-tertiary-ten: #311B92;
+    /* Accent - Amber (High contrast, energetic) */
+    --theme-accent-one: #FFF8E1;
+    --theme-accent-two: #FFECB3;
+    --theme-accent-three: #FFE082;
+    --theme-accent-four: #FFD54F;
+    --theme-accent-five: #FFCA28;
+    --theme-accent-six: #FFC107;
+    --theme-accent-seven: #FFB300;
+    --theme-accent-eight: #FFA000;
+    --theme-accent-nine: #FF8F00;
+    --theme-accent-ten: #FF6F00;
+    /* Highlight - Pink (Attention-grabbing) */
+    --theme-highlight-one: #FCE4EC;
+    --theme-highlight-two: #F8BBD0;
+    --theme-highlight-three: #F48FB1;
+    --theme-highlight-four: #F06292;
+    --theme-highlight-five: #EC407A;
+    --theme-highlight-six: #E91E63;
+    --theme-highlight-seven: #D81B60;
+    --theme-highlight-eight: #C2185B;
+    --theme-highlight-nine: #AD1457;
+    --theme-highlight-ten: #880E4F;
+    /* Alert */
+    --theme-alert-one: #FFEBEE; /* Lightest tint */
+    --theme-alert-two: #FFCDD2; /* Very light */
+    --theme-alert-three: #EF9A9A; /* Light */
+    --theme-alert-four: #E57373; /* Medium-light */
+    --theme-alert-five: #EF5350; /* Medium */
+    --theme-alert-six: #F44336; /* Medium-bright */
+    --theme-alert-seven: #E53935; /* Bright */
+    --theme-alert-eight: #D32F2F; /* Your base color */
+    --theme-alert-nine: #C62828; /* Dark */
+    --theme-alert-ten: #B71C1C; /* Darkest */
+    /* Warning */
+    --theme-warning-one: #FFF3E0; /* Lightest tint */
+    --theme-warning-two: #FFE0B2; /* Very light */
+    --theme-warning-three: #FFCC80; /* Light */
+    --theme-warning-four: #FFB74D; /* Medium-light */
+    --theme-warning-five: #FFA726; /* Medium */
+    --theme-warning-six: #FF9800; /* Medium-bright */
+    --theme-warning-seven: #FB8C00; /* Bright */
+    --theme-warning-eight: #F57C00; /* Near base */
+    --theme-warning-nine: #ED6C02; /* Your base color */
+    --theme-warning-ten: #E65100; /* Darkest */
+    /* Info */
+    --theme-info-one: #E1F5FE; /* Lightest tint */
+    --theme-info-two: #B3E5FC; /* Very light */
+    --theme-info-three: #81D4FA; /* Light */
+    --theme-info-four: #4FC3F7; /* Medium-light */
+    --theme-info-five: #29B6F6; /* Medium */
+    --theme-info-six: #03A9F4; /* Medium-bright */
+    --theme-info-seven: #039BE5; /* Bright */
+    --theme-info-eight: #0288D1; /* Your base color */
+    --theme-info-nine: #0277BD; /* Dark */
+    --theme-info-ten: #01579B; /* Darkest */
+    /* Success */
+    --theme-success-one: #E8F5E9; /* Lightest tint */
+    --theme-success-two: #C8E6C9; /* Very light */
+    --theme-success-three: #A5D6A7; /* Light */
+    --theme-success-four: #81C784; /* Medium-light */
+    --theme-success-five: #66BB6A; /* Medium */
+    --theme-success-six: #4CAF50; /* Medium-bright */
+    --theme-success-seven: #43A047; /* Bright */
+    --theme-success-eight: #388E3C; /* Your base color area */
+    --theme-success-nine: #2E7D32; /* Dark (your selected shade) */
+    --theme-success-ten: #1B5E20; /* Darkest */
+    /* Light */
+    --theme-light-one: #FCFCFC;
+    --theme-light-two: #F3F3F3;
+    --theme-light-three: #E9E9E9;
+    --theme-light-four: #E0E0E0;
+    --theme-light-five: #CACACA;
+    --theme-light-six: #B3B3B3;
+    --theme-light-seven: #9D9D9D;
+    --theme-light-eight: #868686;
+    --theme-light-nine: #707070;
+    --theme-light-ten: #5A5A5A;
+    /* Dark */
+    --theme-dark-one: #E5E5E5;
+    --theme-dark-two: #CCCCCC;
+    --theme-dark-three: #B2B2B2;
+    --theme-dark-four: #999999;
+    --theme-dark-five: #808080;
+    --theme-dark-six: #666666;
+    --theme-dark-seven: #4D4D4D;
+    --theme-dark-eight: #333333;
+    --theme-dark-nine: #1A1A1A;
+    --theme-dark-ten: #000000;
+    --animate-mavi-swing-rotate: mavi-swing-rotate 1.35s linear infinite;
+}
+
+@keyframes mavi-spinner-pulse {
+    0%, 80%, 100% {
+        opacity: 0.25; /* light */
+    }
+
+    40%, 60% {
+        opacity: 1; /* dark */
+    }
+}
+
+@keyframes mavi-loader-equalizer {
+    0%, 100% {
+        transform: scaleY(0.35);
+        opacity: 0.65;
+    }
+
+    50% {
+        transform: scaleY(1.0);
+        opacity: 1.0;
+    }
+}
+
+@keyframes mavi-loader-grid {
+    0%, 100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes mavi-spinner-start-rotate {
+    0% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes mavi-spinner-roller {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes mavi-skeleton-wave {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes mavi-swing-rotate {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
