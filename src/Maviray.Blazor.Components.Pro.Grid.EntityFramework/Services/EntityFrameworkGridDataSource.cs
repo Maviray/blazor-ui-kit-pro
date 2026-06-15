@@ -40,14 +40,14 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
 
         if (filter == null)
         {
-            _logger.LogInformation
+            _logger.LogDebug
                 ("Counting items in the data source.");
 
             return await _dbSet.CountAsync();
         }
         else
         {
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Counting items in the data source. Filter: {Filter}",
                 filter.ToString());
 
@@ -64,7 +64,7 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
             throw new InvalidOperationException(DB_SET_NULL);
         }
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Getting items from data source. SortOrder: {SortOrder}, OrderBy: {OrderBy}, Skip: {Skip}, Take: {Take}, Filter: {Filter}, Includes: {Includes}",
             sortOrder,
             orderBy,
