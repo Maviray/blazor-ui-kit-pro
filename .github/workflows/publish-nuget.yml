@@ -99,16 +99,21 @@ jobs:
         fi
         
         # Find all csproj files in src recursively
-        find src -name "*.csproj" | while read project; do
-            echo "📦 Packing $project..."
-            dotnet pack "$project" \
-              -c ${{ env.CONFIGURATION }} \
-              --no-build \
-              --output ${{ env.PACKAGES_PATH }} \
-              /p:PackageVersion=${{ steps.version.outputs.version }} \
-              /p:Version=${{ steps.version.outputs.version }} \
-              /p:RepositoryBranch="${{ steps.version.outputs.branch }}" \
-              /p:RepositoryCommit=${{ github.sha }}
+         find src -name "*.csproj" | while read project; do
+          # Skip projects where IsPackable is explicitly false
+          if grep -q "<IsPackable>false</IsPackable>" "$project"; then
+            echo "⏭️ Skipping (IsPackable=false): $project"
+            continue
+          fi
+          echo "📦 Packing $project..."
+          dotnet pack "$project" \
+            -c ${{ env.CONFIGURATION }} \
+            --no-build \
+            --output ${{ env.PACKAGES_PATH }} \
+            /p:PackageVersion=${{ steps.version.outputs.version }} \
+            /p:Version=${{ steps.version.outputs.version }} \
+            /p:RepositoryBranch="${{ steps.version.outputs.branch }}" \
+            /p:RepositoryCommit=${{ github.sha }}
         done
 
     - name: Publish to GitHub Packages
