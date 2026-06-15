@@ -20,7 +20,7 @@ public class DbSampleItemOneModel : IGridCollectionModel<DbSampleItemOne, int>
     public int Id { get; set; }
 
     [Display(Name = "Name")]
-    [GridDataProperty(2, MaviGridColumnCellBehavior.Default)]
+    [GridDataProperty(2, MaviGridColumnCellBehavior.Navigational)]
     public string? Name { get; set; }
 
 
