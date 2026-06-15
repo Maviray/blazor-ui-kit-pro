@@ -71,10 +71,9 @@ jobs:
         echo "🌿 Branch: $BRANCH_NAME"
         
     # ✅ Authenticate BEFORE restore so the private feed is available
-    - name: Configure GitHub Packages source
+   - name: Configure GitHub Packages source
       run: |
-        dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
-          --name "github" \
+        dotnet nuget update source "github" \
           --username "${{ github.actor }}" \
           --password "${{ secrets.GITHUB_TOKEN }}" \
           --store-password-in-clear-text
