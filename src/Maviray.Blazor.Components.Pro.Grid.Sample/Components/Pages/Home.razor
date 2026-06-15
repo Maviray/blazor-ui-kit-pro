@@ -1,4 +1,5 @@
 ﻿@page "/"
+@using Maviray.Blazor.Components.Core.Enums
 @using Maviray.Blazor.Components.Pro.Core.Interfaces
 @using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid
 @using Maviray.Blazor.Components.Pro.Core.Models
@@ -11,7 +12,13 @@
 <PageTitle>Home</PageTitle>
 
 <div class="p-4">
-    <MaviGrid @ref="_grid" TDataItem="DbSampleItemOne" TModel="DbSampleItemOneModel" TKey="int" FetchData="FetchGridData" Parameters="_gridParameters" ConstructMainContextMenu="FetchGridMainMenu">
+    <MaviGrid @ref="_grid" 
+              TDataItem="DbSampleItemOne"
+              TModel="DbSampleItemOneModel" 
+              TKey="int" FetchData="FetchGridData" 
+              Parameters="_gridParameters" 
+              ConstructMainContextMenu="FetchGridMainMenu" 
+              OnMainContextMenuButtonClick="OnMainMenuItemClick">
 
     </MaviGrid>
 </div>
@@ -20,7 +27,8 @@
 {
     private readonly MaviGridParameters _gridParameters = new()
     {
-       EnableFilters = true
+       EnableFilters = true,
+       TableRowContextMenuDisplayStyle = TableRowContextMenuDisplayStyle.Icons
     };
 
     private MaviGrid<DbSampleItemOne, DbSampleItemOneModel, int>? _grid;
@@ -50,23 +58,36 @@
             new MaviContextMenuItem()
             {
                 Key = "add",
-                Title = "Add",
-                Css = "btn btn-primary"
+                Title = "Add"
             },
             new MaviContextMenuItem()
             {
                 Key = "delete-selected",
-                Title = "Delete Selected",
-                Css = "btn btn-primary"
+                Title = "Delete Selected"
             },
             new MaviContextMenuItem()
             {
                 Key = "edit",
-                Title = "Edit",
-                Css = "btn btn-primary"
+                Title = "Edit"
+            },
+            new MaviContextMenuItem()
+            {
+                Key = "refresh",
+                Title = "Refresh"
             }
         };
 
         return Task.FromResult(items.AsEnumerable());
+    }
+
+    private async Task OnMainMenuItemClick(IMaviContextMenuItem action)
+    {
+        if (action.Key == "refresh")
+        {
+            if (_grid != null)
+            {
+                await _grid.Refresh();
+            }
+        }
     }
 }

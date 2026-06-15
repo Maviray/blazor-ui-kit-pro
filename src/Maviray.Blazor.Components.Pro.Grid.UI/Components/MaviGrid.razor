@@ -2,7 +2,6 @@
 @using Maviray.Blazor.Components.Core.Enums
 @using Maviray.Blazor.Components.Core.EventArgs
 @using Maviray.Blazor.Components.Core.Extensions
-@using Maviray.Blazor.Components.Core.Models.Tables
 @using Maviray.Blazor.Components.Material.Components.DataDisplay.Icons
 @using Maviray.Blazor.Components.Material.Components.Feedback
 @using Maviray.Blazor.Components.Material.Components.Inputs
@@ -21,7 +20,7 @@
 @typeparam TModel where TModel : class, IGridCollectionModel<TDataItem, TKey>
 @typeparam TKey where TKey : IEquatable<TKey>
 
-    <div class="w-full overflow-hidden rounded-xl border border-zinc-200 text-sm min-h-40 relative">
+    <div class="inline-block max-w-full rounded-xl border border-zinc-200 text-sm min-h-40 relative" style="overflow:auto">
     <MaviBackdrop @ref="_maviBackdrop"
                   Opacity="BackdropOpacity.Lighten"
                   ZIndex="ZIndex.Fifty"
@@ -186,7 +185,7 @@
                     <div class="flex items-center gap-3">
                         @if (_collection is { Rows.Count: > 0 })
                         {
-                            <div class="rounded-full p-1 size-6 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
+                            <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
                                 <MaviIconOnline IconOnlineType="IconOnlineType.ChevronLeftOnline"
                                                 IconColor="ElementColor.DimGrey"
                                                 IconSize="GetIconSize()"
@@ -195,7 +194,7 @@
                             <span class="@GetPaginationTextCss()">
                                 @_collection?.FirstRowIndex–@_collection?.LastRowIndex of @_collection?.TotalRows
                             </span>
-                            <div class="rounded-full p-1 size-6 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
+                            <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
                                 <MaviIconOnline IconOnlineType="IconOnlineType.ChevronRightOnline"
                                                 IconColor="ElementColor.DimGrey"
                                                 IconSize="GetIconSize()"
@@ -215,7 +214,7 @@
         }
         else
         {
-            <div class="w-full min-h-40 flex items-center justify-center">
+            <div class="w-full min-h-40 flex items-center justify-center" style="min-width:20rem">
                 <div class="@Tailwind.Theme.Typography.BODY_LARGE @Tailwind.Theme.Colors.Text.THEME_DEFAULT_SEVEN_TEXT">@Parameters?.NoDataAvailableTitle</div>
             </div>
         }
@@ -526,6 +525,8 @@
     {
         try
         {
+            _gridState.ContextMenuVisible = false;
+
             if (OnMainContextMenuButtonClick.HasDelegate)
             {
                 await OnMainContextMenuButtonClick.InvokeAsync(action);
