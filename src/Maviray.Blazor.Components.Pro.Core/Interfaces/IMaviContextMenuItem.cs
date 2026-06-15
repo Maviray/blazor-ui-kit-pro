@@ -1,6 +1,6 @@
 ﻿namespace Maviray.Blazor.Components.Pro.Core.Interfaces;
 
-public interface IMaviButton
+public interface IMaviContextMenuItem
 {
     string? Key { get; set; }
     string? Title { get; set; }

@@ -5,7 +5,9 @@ using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Enums;
 using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
+using Maviray.Blazor.Components.Core.Enums;
 using Maviray.Blazor.Components.Pro.Core.Enums.Grid;
+using Maviray.Blazor.Components.Pro.Core.Models.Grid.Menu;
 
 namespace Maviray.Blazor.Components.Pro.Grid.Sample.Models;
 
@@ -58,6 +60,35 @@ public class DbSampleItemOneModel : IGridCollectionModel<DbSampleItemOne, int>
 
     public IEnumerable<IMaviRowContextMenuItem<int>> GetContextActions()
     {
-        return Enumerable.Empty<IMaviRowContextMenuItem<int>>();
+        var items = new List<IMaviRowContextMenuItem<int>>();
+
+        items.Add(new MaviRowContextMenuItem<int>()
+        {
+            Key = Id,
+            Title = "Edit",
+            Icon = "lni lni-brush-1-rotate",
+            ThemeColorScheme = ThemeColorScheme.Primary,
+            ElementSize = ElementSize.Small
+        });
+
+        items.Add(new MaviRowContextMenuItem<int>()
+        {
+            Key = Id,
+            Title = "Details",
+            Icon = "lni lni-brush-1-rotate",
+            ThemeColorScheme = ThemeColorScheme.Success,
+            ElementSize = ElementSize.Small
+        });
+
+        items.Add(new MaviRowContextMenuItem<int>()
+        {
+            Key = Id,
+            Title = "Delete",
+            Icon = "lni lni-trash-3",
+            ThemeColorScheme = ThemeColorScheme.Alert,
+            ElementSize = ElementSize.Small
+        });
+
+        return items;
     }
 }

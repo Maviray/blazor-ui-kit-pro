@@ -342,6 +342,8 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
             }
         }
 
+        row.ContextActions = gridModel.GetContextActions().ToList();
+
         return row;
     }
 

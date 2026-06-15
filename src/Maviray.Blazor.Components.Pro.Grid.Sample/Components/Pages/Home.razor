@@ -1,5 +1,7 @@
 ﻿@page "/"
+@using Maviray.Blazor.Components.Pro.Core.Interfaces
 @using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid
+@using Maviray.Blazor.Components.Pro.Core.Models
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter
 @using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models
@@ -9,7 +11,7 @@
 <PageTitle>Home</PageTitle>
 
 <div class="p-4">
-    <MaviGrid @ref="_grid" TDataItem="DbSampleItemOne" TModel="DbSampleItemOneModel" TKey="int" FetchData="FetchGridData" Parameters="_gridParameters">
+    <MaviGrid @ref="_grid" TDataItem="DbSampleItemOne" TModel="DbSampleItemOneModel" TKey="int" FetchData="FetchGridData" Parameters="_gridParameters" ConstructMainContextMenu="FetchGridMainMenu">
 
     </MaviGrid>
 </div>
@@ -39,5 +41,32 @@
         }
 
         return await DataFactory.BuildDataCollection(parameters);
+    }
+
+    private Task<IEnumerable<IMaviContextMenuItem>> FetchGridMainMenu()
+    {
+        var items = new List<IMaviContextMenuItem>
+        {
+            new MaviContextMenuItem()
+            {
+                Key = "add",
+                Title = "Add",
+                Css = "btn btn-primary"
+            },
+            new MaviContextMenuItem()
+            {
+                Key = "delete-selected",
+                Title = "Delete Selected",
+                Css = "btn btn-primary"
+            },
+            new MaviContextMenuItem()
+            {
+                Key = "edit",
+                Title = "Edit",
+                Css = "btn btn-primary"
+            }
+        };
+
+        return Task.FromResult(items.AsEnumerable());
     }
 }

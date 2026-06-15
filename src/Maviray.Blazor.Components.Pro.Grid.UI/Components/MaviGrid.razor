@@ -235,7 +235,7 @@
 
     private MaviBackdrop? _maviBackdrop;
 
-    private IEnumerable<IMaviButton>? _mainContextMenu;
+    private IEnumerable<IMaviContextMenuItem>? _mainContextMenu;
 
     private DotNetObjectReference<MaviGrid<TDataItem, TModel, TKey>>? _dotNetRef;
 
@@ -253,10 +253,10 @@
     public Func<MaviGridDataQueryParameters, Task<MaviGridCollection<TKey>?>>? FetchData { get; set; }
 
     [Parameter]
-    public Func<Task<IEnumerable<IMaviButton>>>? ConstructMainContextMenu { get; set; }
+    public Func<Task<IEnumerable<IMaviContextMenuItem>>>? ConstructMainContextMenu { get; set; }
 
     [Parameter]
-    public EventCallback<IMaviButton> OnMainContextMenuButtonClick { get; set; }
+    public EventCallback<IMaviContextMenuItem> OnMainContextMenuButtonClick { get; set; }
 
     [Parameter]
     public EventCallback<IMaviRowContextMenuItem<TKey>> OnRowContextMenuClick { get; set; }
@@ -518,29 +518,11 @@
 
     protected void ToggleMainContextMenuDropDown(MouseClickEventArgs mouseEventArgs)
     {
-        try
-        {
-
-        }
-        catch (Exception ex)
-        {
-
-        }
+        _gridState.ContextMenuVisible = !_gridState.ContextMenuVisible;
+        _gridState.NeedsRender = true;
     }
 
-    protected void ToggleRowContextMenuDropDown(MaviTableRow row, MouseClickEventArgs mouseEventArgs)
-    {
-        try
-        {
-
-        }
-        catch (Exception ex)
-        {
-
-        }
-    }
-
-    protected async Task ContextMenuClick(IMaviButton? action)
+    protected async Task ContextMenuClick(IMaviContextMenuItem? action)
     {
         try
         {
