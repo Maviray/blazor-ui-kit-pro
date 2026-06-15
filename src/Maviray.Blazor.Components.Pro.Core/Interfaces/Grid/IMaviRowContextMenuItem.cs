@@ -4,11 +4,11 @@ namespace Maviray.Blazor.Components.Pro.Core.Interfaces.Grid;
 
 public interface IMaviRowContextMenuItem<TKey> where TKey : IEquatable<TKey>
 {
-    public TKey Key { get; set; }
+    public TKey? Key { get; set; }
 
-    public string Guid { get; init; }
+    public string Guid { get; set; }
 
-    public string Title { get; set; } 
+    public string? Title { get; set; } 
 
     public string? Icon { get; set; }
 
