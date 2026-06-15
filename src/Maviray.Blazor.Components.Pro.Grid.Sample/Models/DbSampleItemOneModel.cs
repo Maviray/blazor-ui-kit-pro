@@ -66,18 +66,20 @@ public class DbSampleItemOneModel : IGridCollectionModel<DbSampleItemOne, int>
         {
             Key = Id,
             Title = "Edit",
-            Icon = "lni lni-brush-1-rotate",
+            Icon = "lni lni-alarm-1",
             ThemeColorScheme = ThemeColorScheme.Primary,
-            ElementSize = ElementSize.Small
+            ElementSize = ElementSize.Small,
+            ElementVariant = ElementVariant.Outlined
         });
 
         items.Add(new MaviRowContextMenuItem<int>()
         {
             Key = Id,
             Title = "Details",
-            Icon = "lni lni-brush-1-rotate",
+            Icon = "lni lni-align-text-center",
             ThemeColorScheme = ThemeColorScheme.Success,
-            ElementSize = ElementSize.Small
+            ElementSize = ElementSize.Small,
+            ElementVariant = ElementVariant.Outlined
         });
 
         items.Add(new MaviRowContextMenuItem<int>()
@@ -86,7 +88,8 @@ public class DbSampleItemOneModel : IGridCollectionModel<DbSampleItemOne, int>
             Title = "Delete",
             Icon = "lni lni-trash-3",
             ThemeColorScheme = ThemeColorScheme.Alert,
-            ElementSize = ElementSize.Small
+            ElementSize = ElementSize.Small,
+            ElementVariant = ElementVariant.Outlined
         });
 
         return items;

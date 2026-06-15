@@ -15,6 +15,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 @using System.Globalization
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid.Menu
 @inherits Maviray.Blazor.Components.Core.Components.MaviComponentBase
 @typeparam TDataItem where TDataItem : class
 @typeparam TModel where TModel : class, IGridCollectionModel<TDataItem, TKey>
@@ -109,7 +110,7 @@
                             var cell = row.Cells.FirstOrDefault(c => c.ColumnKey == col.Key);
                             <div class="@GetCellBoxClassWithAlignment(col, rowIndex)"
                                 title="@cell?.Value"
-                                 @onclick="async () => { await RowClick(row, col); }">
+                                 @onclick="async () => { await CellClick(cell); }">
                                 @TrimCellValue(cell)
                             </div>
                         }
@@ -261,7 +262,7 @@
     public EventCallback<IMaviRowContextMenuItem<TKey>> OnRowContextMenuClick { get; set; }
 
     [Parameter]
-    public EventCallback<MaviGridCell<TKey>> OnCellClick { get; set; }
+    public EventCallback<CellClickParameters<TKey>> OnCellClick { get; set; }
 
     [Parameter]
     public RenderFragment? NoDataContent { get; set; }
@@ -543,10 +544,22 @@
         }
     }
 
-    protected async Task RowClick(MaviGridRow<TKey> row, MaviGridColumn column)
+    protected async Task CellClick(MaviGridCell<TKey> cell)
     {
         try
         {
+            if (OnCellClick.HasDelegate)
+            {
+                var parameters = new CellClickParameters<TKey>
+                {
+                    RowKey = cell.RowKey,
+                    ColumnKey = cell.ColumnKey,
+                    CellBehavior = cell.CellBehavior
+                };
+
+                await OnCellClick.InvokeAsync(parameters);
+            }
+
             if (EnableLifeCycleLogging)
             {
                 Logger?.LogDebugLifeCycle(Id, GetType());
