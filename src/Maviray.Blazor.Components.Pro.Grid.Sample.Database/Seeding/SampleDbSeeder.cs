@@ -59,18 +59,18 @@ public static class SampleDbSeeder
     // Guarded independently of SampleItemOne so it still runs against an already-populated database.
     private static async Task SeedScopedItemsAsync(SampleDbContext context)
     {
-        if (await context.Scope.AnyAsync())
+        if (await context.AuthScope.AnyAsync())
             return;
 
         var scopes = new[] { "Alpha", "Bravo", "Gamma" }
-            .Select(name => new Scope { Name = name })
+            .Select(name => new AuthScope { Name = name })
             .ToList();
 
         var authAreas = new[] { "North", "South", "East" }
             .Select(name => new AuthArea { Name = name })
             .ToList();
 
-        context.Scope.AddRange(scopes);
+        context.AuthScope.AddRange(scopes);
         context.AuthArea.AddRange(authAreas);
 
         // Persist first so the generated identity values are available for the foreign keys below.
