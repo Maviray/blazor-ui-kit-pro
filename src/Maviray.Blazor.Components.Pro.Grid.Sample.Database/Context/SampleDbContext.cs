@@ -9,4 +9,10 @@ public class SampleDbContext : DbContext
 
     public DbSet<DbSampleItemOne> DbSampleItemOne { get; set; }
     public DbSet<DbSampleItemTwo> DbSampleItemTwo { get; set; }
+
+    public DbSet<DbSampleItemThree> DbSampleItemThree { get; set; }
+    public DbSet<DbSampleItemFour> DbSampleItemFour { get; set; }
+
+    public DbSet<AuthArea> AuthArea { get; set; }
+    public DbSet<Scope> Scope { get; set; }
 }
