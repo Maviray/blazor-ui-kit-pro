@@ -1,0 +1,63 @@
+@page "/scoped"
+@using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Models
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Services
+@using Maviray.Blazor.Components.Pro.Grid.UI.Components
+
+<PageTitle>Scoped items</PageTitle>
+
+<div class="p-4 flex flex-col gap-4">
+    <div class="text-sm text-zinc-600 max-w-3xl">
+        This grid shows <code>DbSampleItemThree</code>, which implements <code>IScopedItem</code>. The page passes
+        <strong>no</strong> filter — a globally registered <code>IGridGlobalFilterProvider</code>
+        (<code>ScopedItemGridFilter</code>) automatically limits rows to the current user's allowed scopes
+        (<strong>@AllowedScopes</strong>) and auth areas (<strong>@AllowedAuthAreas</strong>). Of the 27 seeded
+        items only the matching subset is shown, and column filters apply on top of that constraint.
+    </div>
+
+    <MaviGrid @ref="_grid"
+              TDataItem="DbSampleItemThree"
+              TModel="DbSampleItemThreeModel"
+              TKey="int"
+              FetchData="FetchGridData"
+              Parameters="_gridParameters" />
+</div>
+
+@code
+{
+    private readonly MaviGridParameters _gridParameters = new()
+    {
+        EnableFilters = true
+    };
+
+    private MaviGrid<DbSampleItemThree, DbSampleItemThreeModel, int>? _grid;
+
+    [Inject]
+    private IGenericGridDataFactory<DbSampleItemThree, DbSampleItemThreeModel, int>? DataFactory { get; set; }
+
+    [Inject]
+    private IUserScopeContext? UserScope { get; set; }
+
+    private string AllowedScopes => UserScope == null ? "-" : string.Join(", ", UserScope.AllowedScopeIds);
+    private string AllowedAuthAreas => UserScope == null ? "-" : string.Join(", ", UserScope.AllowedAuthAreaIds);
+
+    private async Task<MaviGridCollection<int>?> FetchGridData(MaviGridDataQueryParameters parameters)
+    {
+        if (string.IsNullOrWhiteSpace(parameters.OrderByColumnKey))
+        {
+            parameters.OrderByColumnKey = "Id";
+        }
+
+        if (DataFactory == null)
+        {
+            return null;
+        }
+
+        // Intentionally no per-call filter: the scope constraint comes entirely from the
+        // globally registered IGridGlobalFilterProvider.
+        return await DataFactory.BuildDataCollection(parameters);
+    }
+}
