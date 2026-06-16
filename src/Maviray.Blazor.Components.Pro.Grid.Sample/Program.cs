@@ -26,6 +26,14 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample
 
             builder.Services.RegisterGridDataFactory();
 
+            // Per-user scope used by the global grid filter below (demo value; real apps derive this
+            // from the authenticated user).
+            builder.Services.AddScoped<IUserScopeContext, DemoUserScopeContext>();
+
+            // Register the cross-cutting scope filter once: it is applied to every grid whose entity
+            // implements IScopedItem, with no per-page wiring.
+            builder.Services.AddGridGlobalFilter<ScopedItemGridFilter>();
+
             builder.Services.AddLogging();
 
             builder.Services.AddTransient(
