@@ -14,7 +14,7 @@ public class DbSampleItemThree : IScopedItem
     public int? ScopeId { get; set; }
 
     [Display(Name = "Scope")]
-    public virtual Scope? Scope { get; set; }
+    public virtual AuthScope? Scope { get; set; }
 
     public int? AuthAreaId { get; set; }
 
