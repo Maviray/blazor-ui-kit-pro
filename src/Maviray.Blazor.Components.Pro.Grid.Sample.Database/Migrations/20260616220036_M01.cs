@@ -1,11 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class M02 : Migration
+    public partial class M01 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -24,7 +25,7 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Scope",
+                name: "AuthScope",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -33,7 +34,26 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Scope", x => x.Id);
+                    table.PrimaryKey("PK_AuthScope", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DbSampleItemOne",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Integer = table.Column<int>(type: "int", nullable: false),
+                    Decimal = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Long = table.Column<long>(type: "bigint", nullable: false),
+                    SampleEnum = table.Column<int>(type: "int", nullable: false),
+                    Boolean = table.Column<bool>(type: "bit", nullable: false),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DbSampleItemOne", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -55,9 +75,9 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                         principalTable: "AuthArea",
                         principalColumn: "Id");
                     table.ForeignKey(
-                        name: "FK_DbSampleItemFour_Scope_ScopeId",
+                        name: "FK_DbSampleItemFour_AuthScope_ScopeId",
                         column: x => x.ScopeId,
-                        principalTable: "Scope",
+                        principalTable: "AuthScope",
                         principalColumn: "Id");
                 });
 
@@ -80,10 +100,31 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                         principalTable: "AuthArea",
                         principalColumn: "Id");
                     table.ForeignKey(
-                        name: "FK_DbSampleItemThree_Scope_ScopeId",
+                        name: "FK_DbSampleItemThree_AuthScope_ScopeId",
                         column: x => x.ScopeId,
-                        principalTable: "Scope",
+                        principalTable: "AuthScope",
                         principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DbSampleItemTwo",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    DbSampleItemOneId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DbSampleItemTwo", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DbSampleItemTwo_DbSampleItemOne_DbSampleItemOneId",
+                        column: x => x.DbSampleItemOneId,
+                        principalTable: "DbSampleItemOne",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
@@ -105,6 +146,12 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                 name: "IX_DbSampleItemThree_ScopeId",
                 table: "DbSampleItemThree",
                 column: "ScopeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DbSampleItemTwo_DbSampleItemOneId",
+                table: "DbSampleItemTwo",
+                column: "DbSampleItemOneId",
+                unique: true);
         }
 
         /// <inheritdoc />
@@ -117,10 +164,16 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                 name: "DbSampleItemThree");
 
             migrationBuilder.DropTable(
+                name: "DbSampleItemTwo");
+
+            migrationBuilder.DropTable(
                 name: "AuthArea");
 
             migrationBuilder.DropTable(
-                name: "Scope");
+                name: "AuthScope");
+
+            migrationBuilder.DropTable(
+                name: "DbSampleItemOne");
         }
     }
 }
