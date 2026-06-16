@@ -2,7 +2,7 @@
 
 namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models;
 
-public class Scope
+public class AuthScope
 {
     [Display(Name = "Id")]
     public int Id { get; set; }

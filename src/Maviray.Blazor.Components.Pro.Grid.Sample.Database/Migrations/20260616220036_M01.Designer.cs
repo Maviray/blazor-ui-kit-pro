@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
 {
     [DbContext(typeof(SampleDbContext))]
-    [Migration("20260615191344_M02")]
-    partial class M02
+    [Migration("20260616220036_M01")]
+    partial class M01
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -39,6 +39,22 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("AuthArea");
+                });
+
+            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.AuthScope", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AuthScope");
                 });
 
             modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.DbSampleItemFour", b =>
@@ -153,29 +169,13 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                     b.ToTable("DbSampleItemTwo");
                 });
 
-            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Scope", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Scope");
-                });
-
             modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.DbSampleItemFour", b =>
                 {
                     b.HasOne("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.AuthArea", "AuthArea")
                         .WithMany("DbSampleItemFour")
                         .HasForeignKey("AuthAreaId");
 
-                    b.HasOne("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Scope", "Scope")
+                    b.HasOne("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.AuthScope", "Scope")
                         .WithMany("DbSampleItemFour")
                         .HasForeignKey("ScopeId");
 
@@ -190,7 +190,7 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                         .WithMany("DbSampleItemThree")
                         .HasForeignKey("AuthAreaId");
 
-                    b.HasOne("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Scope", "Scope")
+                    b.HasOne("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.AuthScope", "Scope")
                         .WithMany("DbSampleItemThree")
                         .HasForeignKey("ScopeId");
 
@@ -217,16 +217,16 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                     b.Navigation("DbSampleItemThree");
                 });
 
-            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.DbSampleItemOne", b =>
-                {
-                    b.Navigation("DbSampleItemTwo");
-                });
-
-            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Scope", b =>
+            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.AuthScope", b =>
                 {
                     b.Navigation("DbSampleItemFour");
 
                     b.Navigation("DbSampleItemThree");
+                });
+
+            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.DbSampleItemOne", b =>
+                {
+                    b.Navigation("DbSampleItemTwo");
                 });
 #pragma warning restore 612, 618
         }

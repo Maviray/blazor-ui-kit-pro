@@ -14,5 +14,5 @@ public class SampleDbContext : DbContext
     public DbSet<DbSampleItemFour> DbSampleItemFour { get; set; }
 
     public DbSet<AuthArea> AuthArea { get; set; }
-    public DbSet<Scope> Scope { get; set; }
+    public DbSet<AuthScope> AuthScope { get; set; }
 }
