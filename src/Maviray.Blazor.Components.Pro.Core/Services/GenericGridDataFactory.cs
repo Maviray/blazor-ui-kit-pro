@@ -34,36 +34,39 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
 
     private readonly ILogger<GenericGridDataFactory<TDataItem, TModel, TKey>> _logger;
     private readonly IGridDataSource<TDataItem> _dataSource;
-    public GenericGridDataFactory(ILogger<GenericGridDataFactory<TDataItem, TModel, TKey>> logger, IGridDataSource<TDataItem> dataSource)
+    private readonly IEnumerable<IGridGlobalFilterProvider> _globalFilterProviders;
+
+    public GenericGridDataFactory(ILogger<GenericGridDataFactory<TDataItem, TModel, TKey>> logger, IGridDataSource<TDataItem> dataSource, IEnumerable<IGridGlobalFilterProvider> globalFilterProviders)
     {
         _logger = logger;
         _dataSource = dataSource;
+        _globalFilterProviders = globalFilterProviders;
     }
 
-    public async Task<MaviGridCollection<TKey>?> BuildDataCollection(MaviGridDataQueryParameters queryParameters)
+    public async Task<MaviGridCollection<TKey>?> BuildDataCollection(MaviGridDataQueryParameters queryParameters, Expression<Func<TDataItem, bool>>? additionalFilter = null)
     {
         if (string.IsNullOrWhiteSpace(queryParameters.OrderByColumnKey))
         {
             queryParameters.OrderByColumnKey = QueryConstants.ID;
         }
 
-        
-
         Expression<Func<TDataItem, bool>>? filter = null;
 
-        var totalItemCount = 0;
-
-        if (queryParameters.Filters == null || !queryParameters.Filters.Any())
-        {
-            totalItemCount = await _dataSource.Count();
-        }
-        else
+        if (queryParameters.Filters != null && queryParameters.Filters.Any())
         {
             filter = ConstructFilter(queryParameters.Filters);
-
-
-            totalItemCount = await _dataSource.Count(filter);
         }
+
+        // Incorporate the consumer-supplied filter (e.g. permission or scope constraints) by
+        // AND-combining it with the grid's own filter, so a user only ever sees data they are allowed
+        // to and the same constraint applies to both the count and the page query.
+        filter = CombineFilters(filter, additionalFilter);
+
+        // Incorporate any globally registered, type-agnostic constraints (e.g. soft-delete or tenant
+        // scoping) so they apply to every grid without per-page wiring.
+        filter = CombineFilters(filter, BuildGlobalFilter());
+
+        var totalItemCount = await _dataSource.Count(filter);
 
         var numberOfItemsToTake = ValidateNumberOfItemsToTake(queryParameters.NumberOfItemsPerPage);
         var totalPages = CalculateTotalPages(totalItemCount, numberOfItemsToTake);
@@ -165,6 +168,35 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
         }
 
         return expression;
+    }
+
+    private Expression<Func<TDataItem, bool>>? BuildGlobalFilter()
+    {
+        Expression<Func<TDataItem, bool>>? combined = null;
+
+        // AND-combine every registered provider's constraint so multiple cross-cutting concerns
+        // (e.g. soft-delete and tenant scoping) can each be registered independently.
+        foreach (var provider in _globalFilterProviders)
+        {
+            combined = CombineFilters(combined, provider.GetFilter<TDataItem>());
+        }
+
+        return combined;
+    }
+
+    private static Expression<Func<TDataItem, bool>>? CombineFilters(Expression<Func<TDataItem, bool>>? first, Expression<Func<TDataItem, bool>>? second)
+    {
+        if (first == null)
+        {
+            return second;
+        }
+
+        if (second == null)
+        {
+            return first;
+        }
+
+        return QueryBuilder<TDataItem, TKey>.CombineExpressions(first, second, MaviCombineExpressionCriteria.AndAlso);
     }
 
     /// <summary>
