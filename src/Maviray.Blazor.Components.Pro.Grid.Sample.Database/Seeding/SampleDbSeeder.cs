@@ -19,6 +19,12 @@ public static class SampleDbSeeder
     {
         await using var context = await factory.CreateDbContextAsync();
 
+        await SeedSampleItemOneAsync(context);
+        await SeedScopedItemsAsync(context);
+    }
+
+    private static async Task SeedSampleItemOneAsync(SampleDbContext context)
+    {
         if (await context.DbSampleItemOne.AnyAsync())
             return;
 
@@ -46,6 +52,58 @@ public static class SampleDbSeeder
         }).ToList();
 
         context.DbSampleItemOne.AddRange(items);
+        await context.SaveChangesAsync();
+    }
+
+    // Seeds the lookup tables and the scoped sample items used to demonstrate the global grid filter.
+    // Guarded independently of SampleItemOne so it still runs against an already-populated database.
+    private static async Task SeedScopedItemsAsync(SampleDbContext context)
+    {
+        if (await context.Scope.AnyAsync())
+            return;
+
+        var scopes = new[] { "Alpha", "Bravo", "Gamma" }
+            .Select(name => new Scope { Name = name })
+            .ToList();
+
+        var authAreas = new[] { "North", "South", "East" }
+            .Select(name => new AuthArea { Name = name })
+            .ToList();
+
+        context.Scope.AddRange(scopes);
+        context.AuthArea.AddRange(authAreas);
+
+        // Persist first so the generated identity values are available for the foreign keys below.
+        await context.SaveChangesAsync();
+
+        var three = new List<DbSampleItemThree>();
+        var four = new List<DbSampleItemFour>();
+
+        foreach (var scope in scopes)
+        {
+            foreach (var authArea in authAreas)
+            {
+                for (var n = 1; n <= 3; n++)
+                {
+                    three.Add(new DbSampleItemThree
+                    {
+                        Name = $"Three · {scope.Name}/{authArea.Name} #{n}",
+                        ScopeId = scope.Id,
+                        AuthAreaId = authArea.Id
+                    });
+
+                    four.Add(new DbSampleItemFour
+                    {
+                        Name = $"Four · {scope.Name}/{authArea.Name} #{n}",
+                        ScopeId = scope.Id,
+                        AuthAreaId = authArea.Id
+                    });
+                }
+            }
+        }
+
+        context.DbSampleItemThree.AddRange(three);
+        context.DbSampleItemFour.AddRange(four);
         await context.SaveChangesAsync();
     }
 }
