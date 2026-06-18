@@ -20,5 +20,5 @@ internal class MaviGridState
     internal bool BackdropInitialState = true;
     internal bool ContextMenuVisible;
     internal bool NeedsRender;
-
+    internal int GoToPage;
 }

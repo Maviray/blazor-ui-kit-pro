@@ -182,27 +182,40 @@
                             <option value="100">100</option>
                         </select>
                     </div>
-
+                    
                     <div class="flex items-center gap-3">
-                        @if (_collection is { Rows.Count: > 0 })
-                        {
-                            <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
-                                <MaviIconOnline IconOnlineType="IconOnlineType.ChevronLeftOnline"
-                                                IconColor="ElementColor.DimGrey"
-                                                IconSize="GetIconSize()"
-                                                OnClick="PrevPage"/>
-                            </div>
-                            <span class="@GetPaginationTextCss()">
-                                @_collection?.FirstRowIndex–@_collection?.LastRowIndex of @_collection?.TotalRows
-                            </span>
-                            <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
-                                <MaviIconOnline IconOnlineType="IconOnlineType.ChevronRightOnline"
-                                                IconColor="ElementColor.DimGrey"
-                                                IconSize="GetIconSize()"
-                                                OnClick="NextPage"/>
-                            </div>
-                        }
+                        <div>
+                            <input id="@($"goto-page-{Id}")"
+                                   class="@GetCountPerPageSelectCss()"
+                                   title="Go To Page"
+                                   type="number"
+                                   min="1"
+                                   max="@(_collection?.TotalPages ?? 1)"
+                                   @bind="_gridState.GoToPage"
+                                   @bind:after="OnGoToPage" />
+                        </div>
+                        <div class="flex items-center gap-3">
+                            @if (_collection is { Rows.Count: > 0 })
+                            {
+                                <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
+                                    <MaviIconOnline IconOnlineType="IconOnlineType.ChevronLeftOnline"
+                                                    IconColor="ElementColor.DimGrey"
+                                                    IconSize="GetIconSize()"
+                                                    OnClick="PrevPage"/>
+                                </div>
+                                <span class="@GetPaginationTextCss()">
+                                    @_collection?.FirstRowIndex–@_collection?.LastRowIndex of @_collection?.TotalRows
+                                </span>
+                                <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
+                                    <MaviIconOnline IconOnlineType="IconOnlineType.ChevronRightOnline"
+                                                    IconColor="ElementColor.DimGrey"
+                                                    IconSize="GetIconSize()"
+                                                    OnClick="NextPage"/>
+                                </div>
+                            }
+                        </div>
                     </div>
+                    
                 </div>
             </div>
         </div>
@@ -339,6 +352,13 @@
             {     
                 _collection = await FetchData.Invoke(_queryParameters);
                 _gridState.NeedsRender = true;
+
+                // Keep the go-to-page input in sync with the page actually returned (the factory may
+                // clamp the requested page into range).
+                if (_collection != null)
+                {
+                    _gridState.GoToPage = _collection.CurrentPage;
+                }
             }
 
             _visibleColumnsCache = null;
@@ -462,6 +482,42 @@
         catch (Exception ex)
         {
             Logger?.Error(ex, "An error occurred while navigating to the next page.");
+        }
+    }
+
+    protected async Task OnGoToPage()
+    {
+        try
+        {
+            if (_collection is null)
+            {
+                return;
+            }
+
+            // Clamp the entered value into the valid range [1, TotalPages] and reflect any correction
+            // back into the bound input.
+            var totalPages = Math.Max(_collection.TotalPages, 1);
+            var requestedPage = Math.Clamp(_gridState.GoToPage, 1, totalPages);
+            _gridState.GoToPage = requestedPage;
+
+            if (requestedPage == _queryParameters.PageNumber)
+            {
+                // Nothing to fetch, but re-render so a clamped value shows in the input.
+                _gridState.NeedsRender = true;
+                return;
+            }
+
+            _queryParameters.PageNumber = requestedPage;
+            await RefreshTable();
+
+            if (EnableLifeCycleLogging)
+            {
+                Logger?.LogDebugLifeCycle(Id, GetType());
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, "An error occurred while navigating to the requested page.");
         }
     }
 
