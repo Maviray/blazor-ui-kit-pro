@@ -1,4 +1,5 @@
-﻿using Maviray.Blazor.Components.Pro.Core.Enums.Grid;
+﻿using Maviray.Blazor.Components.Core.Enums;
+using Maviray.Blazor.Components.Pro.Core.Enums.Grid;
 
 namespace Maviray.Blazor.Components.Pro.Core.Models.Grid;
 
@@ -14,4 +15,8 @@ public class MaviGridCell<TKey> where TKey : IEquatable<TKey>
     public bool Selected { get; set; }
     public bool Active { get; set; }
     public MaviGridColumnCellBehavior CellBehavior { get; set; }
+
+    // Resolved per cell (only for columns with GraphicDisplay) via a consumer-supplied resolver,
+    // signalling which colour scheme an advanced/graphical renderer should use for this cell.
+    public ThemeColorScheme ThemeColorScheme { get; set; }
 }
