@@ -54,7 +54,81 @@
             return null;
         }
 
-        return await DataFactory.BuildDataCollection(parameters);
+        // Per-column colour logic for graphic (badge-style) columns. Keyed by column key; each resolver
+        // receives the finalised cell plus the raw, unformatted value so it can run typed logic.
+        const int integerBaselineOne = 100;
+        const int integerBaselineTwo = 300;
+        const int integerBaselineThree = 500;
+        const int integerBaselineFour = 700;
+
+        var cellThemeResolvers = new Dictionary<string, Func<MaviGridCell<int>, object?, ThemeColorScheme>>
+        {
+            ["Integer"] = (cell, value) =>
+            {
+                if (value is not int number)
+                {
+                    return ThemeColorScheme.Default;
+                }
+
+                if (number < integerBaselineOne)
+                {
+                    return ThemeColorScheme.Primary; // below baseline
+                }
+
+                if (number < integerBaselineTwo)
+                {
+                    return ThemeColorScheme.Secondary; // below baseline
+                }
+
+                if (number < integerBaselineThree)
+                {
+                    return ThemeColorScheme.Success; // below baseline
+                }
+
+                if(number < integerBaselineFour)
+                {
+                    return ThemeColorScheme.Alert; // below baseline
+                }
+
+                return ThemeColorScheme.Warning; // below baseline
+            },
+            ["SampleEnum"] = (cell, value) =>
+            {
+                if (value is null)
+                {
+                    return ThemeColorScheme.Default;
+                }
+
+                if (value.ToString() == "One")
+                {
+                    return ThemeColorScheme.Primary;
+                }
+                if (value.ToString() == "Two")
+                {
+                    return ThemeColorScheme.Secondary;
+                }
+                if (value.ToString() == "Three")
+                {
+                    return ThemeColorScheme.Success;
+                }
+                if (value.ToString() == "Four")
+                {
+                    return ThemeColorScheme.Alert;
+                }
+                if (value.ToString() == "Five")
+                {
+                    return ThemeColorScheme.Warning;
+                }
+                if (value.ToString() == "Six")
+                {
+                    return ThemeColorScheme.Info;
+                }
+
+                return ThemeColorScheme.Default;
+            }
+        };
+
+        return await DataFactory.BuildDataCollection(parameters, cellThemeResolvers: cellThemeResolvers);
     }
 
     private Task<IEnumerable<IMaviContextMenuItem>> FetchGridMainMenu()
