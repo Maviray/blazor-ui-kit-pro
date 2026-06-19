@@ -21,5 +21,9 @@ public class MaviGridColumn
     public string? BoolPositiveDisplay { get; set; } // displays value when column is of boolean type and value is true/selected
     public string? BoolNegativeDisplay { get; set; } // displays value when column is of boolean type and value is false/unselected
 
+    // When true, the column's cells should be rendered with an advanced/graphical presentation
+    // (e.g. a badge) instead of plain text. Driven by GridAdvancedDisplayAttribute on the model property.
+    public bool GraphicDisplay { get; set; }
+
     public Dictionary<string, string>? PossibleFilterValues { get; set; } = [];
 }
