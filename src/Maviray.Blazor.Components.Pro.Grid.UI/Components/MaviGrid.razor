@@ -15,6 +15,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 @using System.Globalization
+@using Maviray.Blazor.Components.Material.Extensions
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid.Menu
 @inherits Maviray.Blazor.Components.Core.Components.MaviComponentBase
 @typeparam TDataItem where TDataItem : class
@@ -109,9 +110,11 @@
                         {
                             var cell = row.Cells.FirstOrDefault(c => c.ColumnKey == col.Key);
                             <div class="@GetCellBoxClassWithAlignment(col, rowIndex)"
-                                title="@cell?.Value"
+                                 title="@cell?.Value"
                                  @onclick="async () => { await CellClick(cell); }">
-                                @TrimCellValue(cell)
+                                <div class="@GetCellWrapperCss(col, cell)">
+                                    @TrimCellValue(cell)
+                                </div>
                             </div>
                         }
 
@@ -626,7 +629,7 @@
         }
         catch (Exception ex)
         {
-           Logger?.Error(ex, "An error occurred while handling the row click.");
+            Logger?.Error(ex, "An error occurred while handling the row click.");
         }
     }
 
@@ -806,7 +809,7 @@
     protected string TrimCellValue(MaviGridCell<TKey>? cell)
     {
         if (cell?.Value is null) return string.Empty;
-       
+
         return Parameters.MaxCellCharsToDisplay > 0 ? cell.Value.TrimToLengthWithDots(Parameters.MaxCellCharsToDisplay) : cell.Value;
     }
 
@@ -888,7 +891,7 @@
         }
 
         return _gridState.ContextMenuDropDownCss;
-    
+
     }
 
     private string GetMainContextMenuStyle() => _gridState.MmainMenuDropdownPositionStyle;
@@ -984,6 +987,13 @@
         }
 
         return _gridState.SearchInputCss;
+    }
+
+    private string GetCellWrapperCss(MaviGridColumn column, MaviGridCell<TKey>? cell)
+    {
+        if (cell == null) return string.Empty;
+
+        return column.GraphicDisplay ? cell.ThemeColorScheme.GetBadgeCss() : string.Empty;
     }
 
     #endregion
