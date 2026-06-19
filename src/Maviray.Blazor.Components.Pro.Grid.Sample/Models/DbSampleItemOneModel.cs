@@ -26,6 +26,7 @@ public class DbSampleItemOneModel : IGridCollectionModel<DbSampleItemOne, int>
 
     [Display(Name = "Integer")]
     [GridDataProperty(3, MaviGridColumnCellBehavior.Default)]
+    [GridAdvancedDisplay]
     public int Integer { get; set; }
 
     [Precision(18, 2)]
@@ -39,6 +40,7 @@ public class DbSampleItemOneModel : IGridCollectionModel<DbSampleItemOne, int>
 
     [Display(Name = "Sample Enum")]
     [GridDataProperty(6, MaviGridColumnCellBehavior.Default)]
+    [GridAdvancedDisplay]
     public SampleEnum SampleEnum { get; set; }
 
     [Display(Name = "Boolean")]

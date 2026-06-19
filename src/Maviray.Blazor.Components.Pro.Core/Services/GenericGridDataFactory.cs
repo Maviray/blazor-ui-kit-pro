@@ -1,4 +1,5 @@
-﻿using Maviray.Blazor.Components.Pro.Core.Attributes.Grid;
+﻿using Maviray.Blazor.Components.Core.Enums;
+using Maviray.Blazor.Components.Pro.Core.Attributes.Grid;
 using Maviray.Blazor.Components.Pro.Core.Constants;
 using Maviray.Blazor.Components.Pro.Core.Enums.Grid;
 using Maviray.Blazor.Components.Pro.Core.Extensions;
@@ -43,7 +44,10 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
         _globalFilterProviders = globalFilterProviders;
     }
 
-    public async Task<MaviGridCollection<TKey>?> BuildDataCollection(MaviGridDataQueryParameters queryParameters, Expression<Func<TDataItem, bool>>? additionalFilter = null)
+    public async Task<MaviGridCollection<TKey>?> BuildDataCollection(
+        MaviGridDataQueryParameters queryParameters,
+        Expression<Func<TDataItem, bool>>? additionalFilter = null,
+        IReadOnlyDictionary<string, Func<MaviGridCell<TKey>, object?, ThemeColorScheme>>? cellThemeResolvers = null)
     {
         if (string.IsNullOrWhiteSpace(queryParameters.OrderByColumnKey))
         {
@@ -83,7 +87,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
             return null;
         }
 
-        var collection = ConstructCollection(resultingData);
+        var collection = ConstructCollection(resultingData, cellThemeResolvers);
 
         if (collection.Columns.Count == 0)
         {
@@ -131,7 +135,9 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
         return collection;
     }
 
-    public MaviGridCollection<TKey> ConstructCollection(IQueryable<TDataItem> queryable)
+    public MaviGridCollection<TKey> ConstructCollection(
+        IQueryable<TDataItem> queryable,
+        IReadOnlyDictionary<string, Func<MaviGridCell<TKey>, object?, ThemeColorScheme>>? cellThemeResolvers = null)
     {
         var type = typeof(TModel);
 
@@ -144,7 +150,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
             var gridModelItem = dataItem.Adapt<TModel>(MappingConfig);
             gridModelItem.ConstructFrom(dataItem);
 
-            var row = ConstructCollectionRow(gridModelItem, properties, collection.Columns);
+            var row = ConstructCollectionRow(gridModelItem, properties, collection.Columns, cellThemeResolvers);
             collection.Rows.Add(row);
         }
 
@@ -276,7 +282,11 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
         return skip;
     }
 
-    private static MaviGridRow<TKey> ConstructCollectionRow(TModel gridModel, PropertyInfo[] properties, List<MaviGridColumn> columns)
+    private static MaviGridRow<TKey> ConstructCollectionRow(
+        TModel gridModel,
+        PropertyInfo[] properties,
+        List<MaviGridColumn> columns,
+        IReadOnlyDictionary<string, Func<MaviGridCell<TKey>, object?, ThemeColorScheme>>? cellThemeResolvers)
     {
         var row = new MaviGridRow<TKey> { Key = gridModel.Key };
 
@@ -297,7 +307,8 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
                         Title = DeterminePropertyTitle(prop),
                         GridPropertyType = GetPropertyType(prop.PropertyType),
                         Sequence = GetGridDataPropertySequence(prop),
-                        MaviGridColumnBehavior = GetGridDataPropertyCellBehavior(prop)
+                        MaviGridColumnBehavior = GetGridDataPropertyCellBehavior(prop),
+                        GraphicDisplay = HasAdvancedDisplay(prop)
                     };
 
                     ProcessColumn(column, prop);
@@ -317,6 +328,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
                 };
 
                 ProcessCell(column, cell, value);
+                ApplyCellThemeColorScheme(column, cell, value, cellThemeResolvers);
 
                 row.Cells.Add(cell);
             }
@@ -345,7 +357,8 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
                                 Key = nestedPropertyKey,
                                 Title = DetermineNestedPropertyTitle(nestedProp),
                                 GridPropertyType = GetPropertyType(nestedProp.PropertyType),
-                                Sequence = GridNavPropertySequence(prop)
+                                Sequence = GridNavPropertySequence(prop),
+                                GraphicDisplay = HasAdvancedDisplay(nestedProp)
                             };
 
                             ProcessColumn(nestedPropertyColumn, nestedProp);
@@ -367,6 +380,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
                         };
 
                         ProcessCell(nestedPropertyColumn, nestedCell, nestedValue);
+                        ApplyCellThemeColorScheme(nestedPropertyColumn, nestedCell, nestedValue, cellThemeResolvers);
 
                         row.Cells.Add(nestedCell);
                     }
@@ -597,6 +611,31 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
             IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
             _ => value.ToString() ?? string.Empty
         };
+    }
+
+    private static bool HasAdvancedDisplay(PropertyInfo property)
+    {
+        return property.GetCustomAttribute<GridAdvancedDisplayAttribute>() != null;
+    }
+
+    /// <summary>
+    /// For a column flagged for graphical display, runs the consumer-supplied resolver matching the
+    /// column key (if any) against the finalised cell and its raw (unformatted) property value, then
+    /// stores the returned scheme on the cell. Passing the raw value lets the resolver run typed logic
+    /// such as numeric threshold comparisons rather than reparsing the formatted display string.
+    /// Non-graphic columns, and graphic columns without a registered resolver, are left untouched.
+    /// </summary>
+    private static void ApplyCellThemeColorScheme(MaviGridColumn column, MaviGridCell<TKey> cell, object? value, IReadOnlyDictionary<string, Func<MaviGridCell<TKey>, object?, ThemeColorScheme>>? cellThemeResolvers)
+    {
+        if (!column.GraphicDisplay || cellThemeResolvers == null)
+        {
+            return;
+        }
+
+        if (cellThemeResolvers.TryGetValue(column.Key, out var resolver))
+        {
+            cell.ThemeColorScheme = resolver(cell, value);
+        }
     }
 
     private static MaviGridColumnCellBehavior GetGridDataPropertyCellBehavior(PropertyInfo property)
