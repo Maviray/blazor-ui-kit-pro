@@ -31,7 +31,24 @@
                   CenterContent="true">
         <MaviSpinnerStarRotate ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Regular" />
     </MaviBackdrop>
-    
+    <MaviDialog @ref="_setVisibleColumnsDialog" DialogButtonClick="OnDialogButtonClick" MaviDialogBaseParameters="_maviDialogBaseParameters">
+        <div class="space-4">
+            @{
+                var allColumns = _collection?.Columns.OrderBy(c => c.Sequence).ToList();
+            }
+            @if (allColumns is { Count: > 0 })
+            {
+                <div class="flex flex-col gap-4">
+                    @foreach (var col in allColumns)
+                    {
+                        <MaviCheckbox @bind-Value="col.Visible"
+                                      ElementSize="ElementSize.Regular"
+                                      Label="@col.Title" />
+                    }
+                </div>
+            }
+        </div>
+    </MaviDialog>
     @if (_collection != null && _collection.Rows.Any())
     {
         <div class="grid divide-y divide-zinc-200" style="grid-template-columns: repeat(@VisibleColumnsCount, minmax(min-content, 200px))">
@@ -56,6 +73,14 @@
                             }
                         </div>
                     </div>
+                </div>
+            }
+
+            @* Select column header *@
+            @if (Parameters?.DisplaySelectColumn == true)
+            {
+                <div class="@GetCellSpacing() truncate flex items-center justify-center">
+                    <span class="@Tailwind.Theme.Typography.LABEL_LARGE @Tailwind.Theme.Colors.Text.THEME_DEFAULT_NINE_TEXT select-none">Select</span>
                 </div>
             }
 
@@ -98,6 +123,10 @@
                                @oninput="(e) => UpdateColumnFilter(column.Key, e)"/>
                     </div>
                 }
+                @if (Parameters?.DisplaySelectColumn == true)
+                {
+                    <div class="px-4 py-2 bg-zinc-50"></div>
+                }
                 <div class="px-4 py-2 bg-zinc-50"></div>
             }
             @* Data rows *@
@@ -115,6 +144,14 @@
                                 <div class="@GetCellWrapperCss(col, cell)">
                                     @TrimCellValue(cell)
                                 </div>
+                            </div>
+                        }
+
+                        @if (Parameters?.DisplaySelectColumn == true)
+                        {
+                            <div class="@GetCellBoxClass(rowIndex, "justify-center")" @onclick:stopPropagation="true">
+                                <MaviCheckbox @bind-Value="row.Selected"
+                                              ThemeColorScheme="ThemeColorScheme.Default" />
                             </div>
                         }
 
@@ -184,6 +221,13 @@
                             <option value="50">50</option>
                             <option value="100">100</option>
                         </select>
+                        
+                        <MaviButtonIcon Icon="lni lni-sliders-horizontal-square-2"
+                                        ElementVariant="ElementVariant.Text"
+                                        ThemeColorScheme="ThemeColorScheme.Dark"
+                                        ElementSize="ElementSize.Regular"
+                                        OnClick="KickOffSetVisibleColumnsModal"
+                                        Title="Set Visible Columns" />
                     </div>
                     
                     <div class="flex items-center gap-3">
@@ -241,7 +285,7 @@
 
 @code
 {
-    private int VisibleColumnsCount => GetVisibleColumns().Count + 1;
+    private int VisibleColumnsCount => GetVisibleColumns().Count + 1 + (Parameters?.DisplaySelectColumn == true ? 1 : 0);
 
     private readonly MaviGridState _gridState = new();
 
@@ -258,6 +302,18 @@
     private readonly MaviGridDataQueryParameters _queryParameters = new();
 
     private CancellationTokenSource? _filterDebounceCts;
+
+    private MaviDialog? _setVisibleColumnsDialog;
+    private readonly MaviDialogBaseParameters _maviDialogBaseParameters = new()
+    {
+        ConfirmButtonTitle = "Set",
+        Title = "Set Column Visibility",
+        Width = "w-96"
+    };
+
+    // Snapshot of each column's Visible flag captured when the dialog opens, so Cancel can revert
+    // the live edits the checkboxes make directly on the column objects.
+    private Dictionary<string, bool>? _columnVisibilitySnapshot;
 
     [Inject]
     protected IJSRuntime? JsRuntime { get; set; }
@@ -1091,4 +1147,75 @@
     }
 
     #endregion
+
+    private async Task OnDialogButtonClick(DialogButtonClickEventArgs buttonClickArgs)
+    {
+        try
+        {
+            if (_maviBackdrop != null)
+            {
+                await _maviBackdrop.Display();
+            }
+
+            if (buttonClickArgs.ButtonClicked == DialogButtonClick.Confirm)
+            {
+                // Column visibility was toggled on the column objects directly. Drop the cached
+                // visible-column list so it is rebuilt, and flag a render (ShouldRender gates on this).
+                _visibleColumnsCache = null;
+                _gridState.NeedsRender = true;
+                StateHasChanged();
+            }
+            else
+            {
+                // Cancel / dismiss: revert the live edits the checkboxes made to the column objects.
+                if (_columnVisibilitySnapshot != null && _collection != null)
+                {
+                    foreach (var column in _collection.Columns)
+                    {
+                        if (_columnVisibilitySnapshot.TryGetValue(column.Key, out var wasVisible))
+                        {
+                            column.Visible = wasVisible;
+                        }
+                    }
+                }
+            }
+
+            _columnVisibilitySnapshot = null;
+
+            if (_setVisibleColumnsDialog != null)
+            {
+                await _setVisibleColumnsDialog.Hide();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, "error attempting to display modal dialog that lets user manages column visibility.");
+        }
+        finally
+        {
+            if (_maviBackdrop != null)
+            {
+                await _maviBackdrop.Hide();
+            }
+        }
+    }
+
+    private async Task KickOffSetVisibleColumnsModal(MouseClickEventArgs args)
+    {
+        try
+        {
+            if (_setVisibleColumnsDialog != null)
+            {
+                // Capture current visibility so Cancel can restore it (the checkboxes mutate the
+                // column objects directly while the dialog is open).
+                _columnVisibilitySnapshot = _collection?.Columns.ToDictionary(c => c.Key, c => c.Visible);
+
+                await _setVisibleColumnsDialog.Display();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, "error attempting to display modal dialog that lets user manages column visibility.");
+        }
+    }
 }

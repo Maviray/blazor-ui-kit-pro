@@ -31,7 +31,8 @@
     private readonly MaviGridParameters _gridParameters = new()
     {
        EnableFilters = true,
-       TableRowContextMenuDisplayStyle = TableRowContextMenuDisplayStyle.Icons
+       TableRowContextMenuDisplayStyle = TableRowContextMenuDisplayStyle.Icons,
+       DisplaySelectColumn = true
     };
 
     private MaviGrid<DbSampleItemOne, DbSampleItemOneModel, int>? _grid;
