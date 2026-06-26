@@ -51,7 +51,7 @@
 
 
 	<ItemGroup>
-	  <PackageReference Include="Maviray.Blazor.Components.Material" Version="0.2.0-beta0248" />
+	  <PackageReference Include="Maviray.Blazor.Components.Material" Version="0.1.26" />
 	</ItemGroup>
 
 
