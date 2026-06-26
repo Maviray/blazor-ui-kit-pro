@@ -382,6 +382,11 @@
         StateHasChanged();
     }
 
+    public IEnumerable<MaviGridRow<TKey>> GetSelectedRows()
+    {
+        return _collection == null ? [] : _collection.GetSelectedRows();
+    }
+
     private async Task RefreshTable()
     {
         try

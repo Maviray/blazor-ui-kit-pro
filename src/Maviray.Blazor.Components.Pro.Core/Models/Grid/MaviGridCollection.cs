@@ -33,4 +33,6 @@ public class MaviGridCollection<TKey> where TKey : IEquatable<TKey>
     {
         return Columns.Count == 0 ? 1 : Columns.Select(column => column.Sequence).Prepend(1).Max();
     }
+
+    public IEnumerable<MaviGridRow<TKey>> GetSelectedRows() => Rows.Where(x => x.Selected);
 }
