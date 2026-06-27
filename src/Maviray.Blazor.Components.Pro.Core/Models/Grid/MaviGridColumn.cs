@@ -20,6 +20,7 @@ public class MaviGridColumn
     public object? CurrentFilerValue { get; set; }
     public string? BoolPositiveDisplay { get; set; } // displays value when column is of boolean type and value is true/selected
     public string? BoolNegativeDisplay { get; set; } // displays value when column is of boolean type and value is false/unselected
+    public string? DateTimeFormat { get; set; } // custom format applied to DateTime/DateTimeOffset cells; null uses the default
 
     // When true, the column's cells should be rendered with an advanced/graphical presentation
     // (e.g. a badge) instead of plain text. Driven by GridAdvancedDisplayAttribute on the model property.
