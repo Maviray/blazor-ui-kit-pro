@@ -318,7 +318,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
 
                 var cell = new MaviGridCell<TKey>
                 {
-                    Value = ConvertPropertyValueToCellValue(value),
+                    Value = ConvertPropertyValueToCellValue(value, column.DateTimeFormat),
                     Sequence = column.Sequence,
                     GridPropertyType = column.GridPropertyType,
                     ColumnKey = column.Key,
@@ -370,7 +370,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
 
                         var nestedCell = new MaviGridCell<TKey>
                         {
-                            Value = ConvertPropertyValueToCellValue(nestedValue),
+                            Value = ConvertPropertyValueToCellValue(nestedValue, nestedPropertyColumn.DateTimeFormat),
                             Sequence = nestedPropertyColumn.Sequence,
                             GridPropertyType = nestedPropertyColumn.GridPropertyType,
                             ColumnKey = nestedPropertyColumn.Key,
@@ -548,7 +548,17 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
                     column.PossibleFilterValues = Enum.GetValues(enumType).Cast<Enum>().ToDictionary(enumValue => enumValue.ToString(), enumValue => enumValue.GetEnumDisplayName());
                     break;
                 }
+            case MaviGridPropertyType.DateTime or MaviGridPropertyType.NavDateTime:
+                column.DateTimeFormat = GetDateTimeFormat(property);
+                break;
         }
+    }
+
+    private static string? GetDateTimeFormat(PropertyInfo property)
+    {
+        var dateTimeFormatAttribute = property.GetCustomAttribute<GridDateTimeFormatAttribute>();
+
+        return string.IsNullOrWhiteSpace(dateTimeFormatAttribute?.Format) ? null : dateTimeFormatAttribute.Format;
     }
 
     private static void ProcessCell(MaviGridColumn column, MaviGridCell<TKey> cell, object? value)
@@ -593,18 +603,18 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
                     break;
                 }
             default:
-                cell.Value = ConvertPropertyValueToCellValue(value);
+                cell.Value = ConvertPropertyValueToCellValue(value, column.DateTimeFormat);
                 break;
         }
     }
 
-    private static string ConvertPropertyValueToCellValue(object? value)
+    private static string ConvertPropertyValueToCellValue(object? value, string? dateTimeFormat = null)
     {
         return value switch
         {
             null => string.Empty,
-            DateTime dateTime => dateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
-            DateTimeOffset dateTimeOffset => dateTimeOffset.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture),
+            DateTime dateTime => dateTime.ToString(dateTimeFormat ?? "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+            DateTimeOffset dateTimeOffset => dateTimeOffset.ToString(dateTimeFormat ?? "yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture),
             DateOnly dateOnly => dateOnly.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             TimeOnly timeOnly => timeOnly.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
             // IFormattable covers the numeric types so they render with a stable, culture-invariant form.
