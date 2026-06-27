@@ -269,22 +269,30 @@
     }
     else
     {
-        @if (NoDataContent != null && !_busy)
-        {
-            @NoDataContent
-        }
-        else if (!_busy)
+        @if (NoDataContent != null)
         {
             <div class="w-full min-h-40 flex items-center justify-center" style="min-width:20rem">
-                <div class="flex items-center gap-4">
-                    <div class="@Tailwind.Theme.Typography.BODY_LARGE @Tailwind.Theme.Colors.Text.THEME_DEFAULT_SEVEN_TEXT">@Parameters?.NoDataAvailableTitle</div>
-                    <MaviButtonIcon Icon="lni lni-refresh-circle-1-clockwise"
-                                    ElementVariant="ElementVariant.Filled"
-                                    ThemeColorScheme="ThemeColorScheme.Default"
-                                    ElementSize="ElementSize.Large"
-                                    OnClick="ClearFiltersAndReload"
-                                    Title="Reload"/>
-                </div>
+                @if (!_busy)
+                {
+                    @NoDataContent
+                }
+            </div>
+        }
+        else
+        {
+            <div class="w-full min-h-40 flex items-center justify-center" style="min-width:20rem">
+                @if (!_busy)
+                {
+                    <div class="flex items-center gap-4">
+                        <div class="@Tailwind.Theme.Typography.BODY_LARGE @Tailwind.Theme.Colors.Text.THEME_DEFAULT_SEVEN_TEXT">@Parameters?.NoDataAvailableTitle</div>
+                        <MaviButtonIcon Icon="lni lni-refresh-circle-1-clockwise"
+                                        ElementVariant="ElementVariant.Filled"
+                                        ThemeColorScheme="ThemeColorScheme.Default"
+                                        ElementSize="ElementSize.Large"
+                                        OnClick="ClearFiltersAndReload"
+                                        Title="Reload"/>
+                    </div>
+                }
             </div>
         }
     }
