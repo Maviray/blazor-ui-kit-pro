@@ -269,14 +269,22 @@
     }
     else
     {
-        @if (NoDataContent != null)
+        @if (NoDataContent != null && !_busy)
         {
             @NoDataContent
         }
-        else
+        else if (!_busy)
         {
             <div class="w-full min-h-40 flex items-center justify-center" style="min-width:20rem">
-                <div class="@Tailwind.Theme.Typography.BODY_LARGE @Tailwind.Theme.Colors.Text.THEME_DEFAULT_SEVEN_TEXT">@Parameters?.NoDataAvailableTitle</div>
+                <div class="flex items-center gap-4">
+                    <div class="@Tailwind.Theme.Typography.BODY_LARGE @Tailwind.Theme.Colors.Text.THEME_DEFAULT_SEVEN_TEXT">@Parameters?.NoDataAvailableTitle</div>
+                    <MaviButtonIcon Icon="lni lni-refresh-circle-1-clockwise"
+                                    ElementVariant="ElementVariant.Filled"
+                                    ThemeColorScheme="ThemeColorScheme.Default"
+                                    ElementSize="ElementSize.Large"
+                                    OnClick="ClearFiltersAndReload"
+                                    Title="Reload"/>
+                </div>
             </div>
         }
     }
@@ -285,6 +293,8 @@
 
 @code
 {
+    private bool _busy = false;
+
     private int VisibleColumnsCount => GetVisibleColumns().Count + 1 + (Parameters?.DisplaySelectColumn == true ? 1 : 0);
 
     private readonly MaviGridState _gridState = new();
@@ -382,6 +392,19 @@
         StateHasChanged();
     }
 
+    private async Task ClearFiltersAndReload()
+    {
+        try
+        {
+            _queryParameters.ClearFilters();
+            await RefreshTable();
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error(ex, "An error occurred while refreshing the grid.");
+        }
+    }
+
     public IEnumerable<MaviGridRow<TKey>> GetSelectedRows()
     {
         return _collection == null ? [] : _collection.GetSelectedRows();
@@ -391,6 +414,7 @@
     {
         try
         {
+            _busy = true;
             _maviBackdrop?.Display();
 
             await BuildCollection();
@@ -404,6 +428,7 @@
         {
             _maviBackdrop?.Hide();
             _gridState.BackdropInitialState = false;
+            _busy = false;
         }
 
     }
