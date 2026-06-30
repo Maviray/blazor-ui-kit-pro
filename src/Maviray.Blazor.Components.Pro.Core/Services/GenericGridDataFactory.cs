@@ -47,7 +47,8 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
     public async Task<MaviGridCollection<TKey>?> BuildDataCollection(
         MaviGridDataQueryParameters queryParameters,
         Expression<Func<TDataItem, bool>>? additionalFilter = null,
-        IReadOnlyDictionary<string, Func<MaviGridCell<TKey>, object?, ThemeColorScheme>>? cellThemeResolvers = null)
+        IReadOnlyDictionary<string, Func<MaviGridCell<TKey>, object?, ThemeColorScheme>>? cellThemeResolvers = null,
+        GridIncludeConfigurator<TDataItem>? includeConfigurator = null)
     {
         if (string.IsNullOrWhiteSpace(queryParameters.OrderByColumnKey))
         {
@@ -80,7 +81,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
 
         IQueryable<TDataItem> ? resultingData = null;
 
-        resultingData = await _dataSource.Get(queryParameters.SortOrder, queryParameters.OrderByColumnKey, skip, numberOfItemsToTake, filter, NavigationIncludePaths);
+        resultingData = await _dataSource.Get(queryParameters.SortOrder, queryParameters.OrderByColumnKey, skip, numberOfItemsToTake, filter, NavigationIncludePaths, includeConfigurator);
 
         if (resultingData == null)
         {
