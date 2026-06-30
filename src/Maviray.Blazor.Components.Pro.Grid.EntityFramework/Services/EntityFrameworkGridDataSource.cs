@@ -55,7 +55,7 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
         }
     }
 
-    public async Task<IQueryable<TDataItem>?> Get(SortOrder sortOrder, string orderBy, int skip, int numberOfItemsToTake, Expression<Func<TDataItem, bool>>? filter = null, IReadOnlyCollection<string>? includePaths = null)
+    public async Task<IQueryable<TDataItem>?> Get(SortOrder sortOrder, string orderBy, int skip, int numberOfItemsToTake, Expression<Func<TDataItem, bool>>? filter = null, IReadOnlyCollection<string>? includePaths = null, GridIncludeConfigurator<TDataItem>? includeConfigurator = null)
     {
         await InitializeContext();
 
@@ -65,13 +65,14 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
         }
 
         _logger.LogDebug(
-            "Getting items from data source. SortOrder: {SortOrder}, OrderBy: {OrderBy}, Skip: {Skip}, Take: {Take}, Filter: {Filter}, Includes: {Includes}",
+            "Getting items from data source. SortOrder: {SortOrder}, OrderBy: {OrderBy}, Skip: {Skip}, Take: {Take}, Filter: {Filter}, Includes: {Includes}, IncludeConfigurator: {IncludeConfigurator}",
             sortOrder,
             orderBy,
             skip,
             numberOfItemsToTake,
             filter?.ToString() ?? "none",
-            includePaths == null || includePaths.Count == 0 ? "none" : string.Join(", ", includePaths));
+            includePaths == null || includePaths.Count == 0 ? "none" : string.Join(", ", includePaths),
+            includeConfigurator == null ? "none" : "supplied");
 
         IQueryable<TDataItem> query = _dbSet;
 
@@ -85,6 +86,14 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
                     query = query.Include(includePath);
                 }
             }
+        }
+
+        // Apply the consumer-supplied include tree (e.g. Include(...).ThenInclude(...)) so related
+        // entities that cannot be expressed as dotted string paths are materialized by the same paged
+        // query and are available when each TModel is built in ConstructFrom.
+        if (includeConfigurator != null)
+        {
+            query = includeConfigurator(query);
         }
 
         if (filter != null)
