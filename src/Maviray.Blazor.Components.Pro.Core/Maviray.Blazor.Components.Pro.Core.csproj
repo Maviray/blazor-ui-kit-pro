@@ -32,8 +32,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Mapster" Version="10.0.9" />
-		<PackageReference Include="Maviray.Blazor.Components.Core" Version="0.3.0-beta0005" />
+		<PackageReference Include="Mapster" Version="10.0.10" />
+		<PackageReference Include="Maviray.Blazor.Components.Core" Version="0.3.0-beta0007" />
 		<PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.9" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.9" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
