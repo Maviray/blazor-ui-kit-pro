@@ -15,4 +15,10 @@ public class SampleDbContext : DbContext
 
     public DbSet<AuthArea> AuthArea { get; set; }
     public DbSet<AuthScope> AuthScope { get; set; }
+
+    public DbSet<Country> Country { get; set; }
+    public DbSet<Region> Region { get; set; }
+    public DbSet<Customer> Customer { get; set; }
+    public DbSet<Order> Order { get; set; }
+    public DbSet<OrderItem> OrderItem { get; set; }
 }
