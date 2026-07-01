@@ -57,8 +57,8 @@
             {
                 <div class="@GetColumnHeaderContainerCss(column)">
                     <div class="@GetColumnHeaderCss(column)">
-                        <div class="@Tailwind.Theme.Typography.LABEL_LARGE cursor-pointer select-none transition-colors @Tailwind.Theme.Colors.Text.Hover.THEME_DEFAULT_TEN_TEXT_HOVER flex items-center gap-2"
-                            @onclick="() => SortByColumn(column.Key)">
+                        <div class="@Tailwind.Theme.Typography.LABEL_LARGE select-none transition-colors flex items-center gap-2 @(column.Sortable ? $"cursor-pointer {Tailwind.Theme.Colors.Text.Hover.THEME_DEFAULT_TEN_TEXT_HOVER}" : "cursor-default opacity-70")"
+                            @onclick="() => SortByColumn(column)">
                             <span>@column.Title</span>
                             @if (_collection?.SortColumnKey == column.Key)
                             {
@@ -116,11 +116,14 @@
                 @foreach (var column in GetVisibleColumns())
                 {
                     <div class="px-4 py-2 bg-zinc-50">
-                        <input type="text"
-                               id="@($"filter-{column.Key}-{Id}")"
-                               class="@GetSearchInputCss()"
-                               placeholder="@Parameters?.FilterPlaceholderText"
-                               @oninput="(e) => UpdateColumnFilter(column.Key, e)"/>
+                        @if (column.Filterable)
+                        {
+                            <input type="text"
+                                   id="@($"filter-{column.Key}-{Id}")"
+                                   class="@GetSearchInputCss()"
+                                   placeholder="@Parameters?.FilterPlaceholderText"
+                                   @oninput="(e) => UpdateColumnFilter(column.Key, e)"/>
+                        }
                     </div>
                 }
                 @if (Parameters?.DisplaySelectColumn == true)
@@ -618,17 +621,22 @@
         }
     }
 
-    protected async Task SortByColumn(string columnKey)
+    protected async Task SortByColumn(MaviGridColumn column)
     {
+        if (!column.Sortable)
+        {
+            return;
+        }
+
         try
         {
-            if (_queryParameters.OrderByColumnKey == columnKey)
+            if (_queryParameters.OrderByColumnKey == column.Key)
             {
                 _queryParameters.SortOrder = _queryParameters.SortOrder == SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;
             }
             else
             {
-                _queryParameters.OrderByColumnKey = columnKey;
+                _queryParameters.OrderByColumnKey = column.Key;
                 _queryParameters.SortOrder = SortOrder.Ascending;
             }
 
@@ -641,7 +649,7 @@
         }
         catch (Exception ex)
         {
-            Logger?.Error(ex, $"An error occurred while sorting by column with key '{columnKey}'.");
+            Logger?.Error(ex, $"An error occurred while sorting by column with key '{column.Key}'.");
         }
     }
 
