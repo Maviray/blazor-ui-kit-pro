@@ -38,5 +38,5 @@ public class Order
     public Guid ConfirmationCode { get; set; }
 
     public int CustomerId { get; set; }
-    public virtual Customer? Customer { get; set; }
+    public virtual Customer Customer { get; set; } = null!;
 }
