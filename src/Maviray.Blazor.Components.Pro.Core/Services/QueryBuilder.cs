@@ -7,12 +7,13 @@ namespace Maviray.Blazor.Components.Pro.Core.Services;
 
 public class QueryBuilder<TDataItem, TKey> where TDataItem : class where TKey : IEquatable<TKey>
 {
-    public static Expression<Func<TDataItem, bool>> BuildFilterExpression(string propertyPath, MaviGridFilterCriteria gridFilterCriteria, object value)
+    public static Expression<Func<TDataItem, bool>> BuildFilterExpression(string propertyPath, MaviGridFilterCriteria gridFilterCriteria, object value, object? nullDefault = null)
     {
         var parameter = Expression.Parameter(typeof(TDataItem), QueryConstants.PARAMETER);
 
-        // Handle nested properties
-        var property = GetPropertyExpression(parameter, propertyPath);
+        // Handle nested properties; when nullDefault is supplied the final access is coalesced so a
+        // NULL at the data source is treated as the same default value ConstructFrom uses in memory.
+        var property = GetPropertyExpression(parameter, propertyPath, nullDefault);
 
         if (property == null)
         {
@@ -33,8 +34,8 @@ public class QueryBuilder<TDataItem, TKey> where TDataItem : class where TKey : 
 
             MaviGridFilterCriteria.Contains => BuildStringMethodExpression(property, QueryConstants.CONTAINS, value),
             MaviGridFilterCriteria.Excludes => Expression.Not(BuildStringMethodExpression(property, QueryConstants.CONTAINS, value)),
-            MaviGridFilterCriteria.IsTrue => Expression.Equal(property, Expression.Constant(true)),
-            MaviGridFilterCriteria.IsFalse => Expression.Equal(property, Expression.Constant(false)),
+            MaviGridFilterCriteria.IsTrue => Expression.Equal(property, Expression.Constant(true, property.Type)),
+            MaviGridFilterCriteria.IsFalse => Expression.Equal(property, Expression.Constant(false, property.Type)),
             MaviGridFilterCriteria.None => throw new NotImplementedException(),
             _ => throw new NotSupportedException($"GridFilterCriteria '{gridFilterCriteria}' is not supported")
         };
@@ -58,8 +59,8 @@ public class QueryBuilder<TDataItem, TKey> where TDataItem : class where TKey : 
             MaviGridFilterCriteria.After => Expression.GreaterThan(property, valueExpression),
             MaviGridFilterCriteria.Contains => BuildStringMethodExpression(property, QueryConstants.CONTAINS, value),
             MaviGridFilterCriteria.Excludes => Expression.Not(BuildStringMethodExpression(property, QueryConstants.CONTAINS, value)),
-            MaviGridFilterCriteria.IsTrue => Expression.Equal(property, Expression.Constant(true)),
-            MaviGridFilterCriteria.IsFalse => Expression.Equal(property, Expression.Constant(false)),
+            MaviGridFilterCriteria.IsTrue => Expression.Equal(property, Expression.Constant(true, property.Type)),
+            MaviGridFilterCriteria.IsFalse => Expression.Equal(property, Expression.Constant(false, property.Type)),
 
             _ => throw new NotSupportedException($"GridFilterCriteria '{gridFilterCriteria}' is not supported")
         };
@@ -67,9 +68,9 @@ public class QueryBuilder<TDataItem, TKey> where TDataItem : class where TKey : 
         return condition;
     }
 
-    private static Expression? GetPropertyExpression(Expression parameter, string propertyPath)
+    private static Expression? GetPropertyExpression(Expression parameter, string propertyPath, object? nullDefault)
     {
-        return propertyPath.Split('.').Aggregate(parameter, Expression.PropertyOrField);
+        return GridPropertyExpressionBuilder.BuildPropertyExpression(parameter, propertyPath, nullDefault);
     }
 
     private static (Type propertyType, Expression valueExpression) PrepareValueExpression(Expression property, object value)
