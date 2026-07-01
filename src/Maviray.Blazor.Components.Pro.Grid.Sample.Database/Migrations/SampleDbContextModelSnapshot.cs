@@ -54,6 +54,95 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                     b.ToTable("AuthScope");
                 });
 
+            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Country", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<TimeSpan>("AverageTransitTime")
+                        .HasColumnType("time");
+
+                    b.Property<string>("CountryGrade")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(1)");
+
+                    b.Property<string>("CountryName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("CountryReference")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("GdpTrillion")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("IndependenceDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsMemberState")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("PopulationMillions")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Country");
+                });
+
+            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Customer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<Guid>("AccountReference")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CompanyName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("CreditLimit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CustomerGrade")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(1)");
+
+                    b.Property<int>("EmployeeCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FoundedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RegionId")
+                        .HasColumnType("int");
+
+                    b.Property<TimeSpan>("SupportResponseTime")
+                        .HasColumnType("time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RegionId");
+
+                    b.ToTable("Customer");
+                });
+
             modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.DbSampleItemFour", b =>
                 {
                     b.Property<int>("Id")
@@ -166,6 +255,156 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                     b.ToTable("DbSampleItemTwo");
                 });
 
+            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Order", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<Guid>("ConfirmationCode")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsRush")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LineCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OrderClass")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(1)");
+
+                    b.Property<DateTime>("OrderDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OrderNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<TimeSpan>("ProcessingWindow")
+                        .HasColumnType("time");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.ToTable("Order");
+                });
+
+            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.OrderItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<TimeSpan>("EstimatedDuration")
+                        .HasColumnType("time");
+
+                    b.Property<bool>("IsBackordered")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductGrade")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(1)");
+
+                    b.Property<string>("ProductName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ShippedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("TrackingReference")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("OrderItem");
+                });
+
+            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Region", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AverageDealSize")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("CountryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EstablishedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsInternational")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("OfficeCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RegionCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(1)");
+
+                    b.Property<string>("RegionName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("RegionReference")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<TimeSpan>("StandardShippingWindow")
+                        .HasColumnType("time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CountryId");
+
+                    b.ToTable("Region");
+                });
+
+            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Customer", b =>
+                {
+                    b.HasOne("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Region", "Region")
+                        .WithMany()
+                        .HasForeignKey("RegionId");
+
+                    b.Navigation("Region");
+                });
+
             modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.DbSampleItemFour", b =>
                 {
                     b.HasOne("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.AuthArea", "AuthArea")
@@ -205,6 +444,39 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("DbSampleItemOne");
+                });
+
+            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Order", b =>
+                {
+                    b.HasOne("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.OrderItem", b =>
+                {
+                    b.HasOne("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Region", b =>
+                {
+                    b.HasOne("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.Country", "Country")
+                        .WithMany()
+                        .HasForeignKey("CountryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Country");
                 });
 
             modelBuilder.Entity("Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models.AuthArea", b =>
