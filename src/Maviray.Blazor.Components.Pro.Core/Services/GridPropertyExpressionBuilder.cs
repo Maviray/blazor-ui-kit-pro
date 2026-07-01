@@ -21,6 +21,16 @@ internal static class GridPropertyExpressionBuilder
         }
 
         var underlyingType = Nullable.GetUnderlyingType(property.Type) ?? property.Type;
-        return Expression.Coalesce(property, Expression.Constant(nullDefault, underlyingType));
+
+        // Expression.Coalesce requires its left operand to be a reference type or Nullable<T>. A
+        // property reached through an optional navigation (e.g. Customer.Region?.Rating, where
+        // Region is optional but Rating is a plain non-nullable enum declared on Region itself)
+        // has a non-nullable static type even though the value can be missing at the database
+        // level - convert to Nullable<T> first so Coalesce is valid to construct.
+        Expression coalesceSource = property.Type.IsValueType && Nullable.GetUnderlyingType(property.Type) == null
+            ? Expression.Convert(property, typeof(Nullable<>).MakeGenericType(property.Type))
+            : property;
+
+        return Expression.Coalesce(coalesceSource, Expression.Constant(nullDefault, underlyingType));
     }
 }

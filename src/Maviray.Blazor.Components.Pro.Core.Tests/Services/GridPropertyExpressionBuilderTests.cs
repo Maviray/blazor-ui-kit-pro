@@ -51,4 +51,23 @@ public class GridPropertyExpressionBuilderTests
         Assert.ThrowsAny<Exception>(() =>
             GridPropertyExpressionBuilder.BuildPropertyExpression(parameter, "DoesNotExist", nullDefault: null));
     }
+
+    [Fact]
+    public void BuildPropertyExpression_NonNullableValueTypeWithNullDefault_DoesNotThrowAndPreservesValue()
+    {
+        var parameter = Expression.Parameter(typeof(TestOrder), "x");
+
+        // TestOrder.Vendor is a nullable reference (TestVendor?), but Vendor.IsPreferred is a
+        // plain, non-nullable bool - mirrors a property reached through an optional EF Core
+        // navigation whose own declared type is non-nullable (e.g. PurchaseOrder?.InvoiceReceived,
+        // where InvoiceReceived is a plain bool on PurchaseOrder). Before the fix, this threw
+        // InvalidOperationException from Expression.Coalesce ("used with a type that cannot be
+        // null") because Vendor.IsPreferred's static type is bool, not bool?.
+        var property = GridPropertyExpressionBuilder.BuildPropertyExpression(parameter, "Vendor.IsPreferred", nullDefault: false);
+
+        var compiled = Expression.Lambda<Func<TestOrder, bool>>(property, parameter).Compile();
+
+        Assert.True(compiled(new TestOrder { Vendor = new TestVendor { IsPreferred = true } }));
+        Assert.False(compiled(new TestOrder { Vendor = new TestVendor { IsPreferred = false } }));
+    }
 }
