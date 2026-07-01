@@ -56,4 +56,25 @@ public class QueryBuilderTests
 
         Assert.Equal([2], matched);
     }
+
+    [Fact]
+    public void BuildFilterExpression_NonNullableValueTypeThroughOptionalNavigation_WithNullDefault_DoesNotThrow()
+    {
+        // Only non-null Vendor rows here - proving a null intermediate navigation resolves safely
+        // requires a real EF Core provider translating the LEFT JOIN, which this in-memory
+        // LINQ-to-Objects suite cannot exercise. That end-to-end case is proven separately, against
+        // a real database, by the "Custom Property Mapping" sample page (see the property-mapping
+        // sample plan, Task 7).
+        var items = new List<TestOrder>
+        {
+            new() { Id = 1, Vendor = new TestVendor { IsPreferred = true } },
+            new() { Id = 2, Vendor = new TestVendor { IsPreferred = false } }
+        }.AsQueryable();
+
+        var filter = QueryBuilder<TestOrder, int>.BuildFilterExpression("Vendor.IsPreferred", MaviGridFilterCriteria.Equals, true, nullDefault: false);
+
+        var matched = items.Where(filter).Select(x => x.Id).ToList();
+
+        Assert.Equal([1], matched);
+    }
 }

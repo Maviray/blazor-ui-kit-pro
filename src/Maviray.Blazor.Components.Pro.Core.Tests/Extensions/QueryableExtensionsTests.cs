@@ -53,4 +53,18 @@ public class QueryableExtensionsTests
 
         Assert.Equal([2, 1], ordered);
     }
+
+    [Fact]
+    public void OrderByDynamic_NonNullableValueTypeThroughOptionalNavigation_WithNullDefault_DoesNotThrow()
+    {
+        var items = new List<TestOrder>
+        {
+            new() { Id = 1, Vendor = new TestVendor { IsPreferred = false } },
+            new() { Id = 2, Vendor = new TestVendor { IsPreferred = true } }
+        }.AsQueryable();
+
+        var ordered = items.OrderByDynamic("Vendor.IsPreferred", SortOrder.Ascending, nullDefault: false).Select(x => x.Id).ToList();
+
+        Assert.Equal([1, 2], ordered);
+    }
 }
