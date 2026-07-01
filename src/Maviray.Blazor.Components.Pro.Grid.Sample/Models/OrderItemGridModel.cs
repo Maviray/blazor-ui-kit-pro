@@ -22,9 +22,10 @@ public class OrderItemGridModel : IGridCollectionModel<OrderItem, int>
     [Display(Name = "Product Name")]
     [GridDataProperty(2)]
     public string? ProductName { get; set; }
-
-    [Display(Name = "Is Backordered")]
+    
     [GridDataProperty(3)]
+    [Display(Name = "Is Backordered")]
+    [GridBooleanDisplayValues("Yes", "No")]
     public bool IsBackordered { get; set; }
 
     [Display(Name = "Quantity")]
@@ -52,9 +53,10 @@ public class OrderItemGridModel : IGridCollectionModel<OrderItem, int>
     [Display(Name = "Region Rating (or Default)")]
     [GridDataProperty(9)]
     public RatingEnum RegionRatingOrDefault { get; set; }
-
-    [Display(Name = "Is International (or Default)")]
+    
     [GridDataProperty(10)]
+    [GridBooleanDisplayValues("Yes", "No")]
+    [Display(Name = "Is International (or Default)")]
     public bool IsInternationalOrDefault { get; set; }
 
     // (d) Genuinely computed - no single backing path, so these stay unresolvable.
