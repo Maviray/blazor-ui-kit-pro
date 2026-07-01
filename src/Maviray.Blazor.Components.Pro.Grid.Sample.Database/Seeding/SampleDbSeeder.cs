@@ -21,6 +21,7 @@ public static class SampleDbSeeder
 
         await SeedSampleItemOneAsync(context);
         await SeedScopedItemsAsync(context);
+        await OrderDomainSeeder.SeedAsync(context);
     }
 
     private static async Task SeedSampleItemOneAsync(SampleDbContext context)
