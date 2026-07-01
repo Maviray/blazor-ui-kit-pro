@@ -55,7 +55,7 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
         }
     }
 
-    public async Task<IQueryable<TDataItem>?> Get(SortOrder sortOrder, string orderBy, int skip, int numberOfItemsToTake, Expression<Func<TDataItem, bool>>? filter = null, IReadOnlyCollection<string>? includePaths = null, GridIncludeConfigurator<TDataItem>? includeConfigurator = null)
+    public async Task<IQueryable<TDataItem>?> Get(SortOrder sortOrder, string orderBy, int skip, int numberOfItemsToTake, Expression<Func<TDataItem, bool>>? filter = null, IReadOnlyCollection<string>? includePaths = null, GridIncludeConfigurator<TDataItem>? includeConfigurator = null, object? orderByNullDefault = null)
     {
         await InitializeContext();
 
@@ -101,7 +101,7 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
             query = query.Where(filter);
         }
 
-        return query.OrderByDynamic(orderBy, sortOrder).Skip(skip).Take(numberOfItemsToTake);
+        return query.OrderByDynamic(orderBy, sortOrder, orderByNullDefault).Skip(skip).Take(numberOfItemsToTake);
     }
 
     /// <summary>
