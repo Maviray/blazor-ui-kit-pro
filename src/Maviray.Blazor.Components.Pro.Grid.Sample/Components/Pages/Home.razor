@@ -129,7 +129,7 @@
             }
         };
 
-        return await DataFactory.BuildDataCollection(parameters, cellThemeResolvers: cellThemeResolvers);
+        return await DataFactory.BuildDataCollection(parameters, cellThemeResolvers: cellThemeResolvers, additionalFilter: x => x.Name == "sfsfsadf");
     }
 
     private Task<IEnumerable<IMaviContextMenuItem>> FetchGridMainMenu()
