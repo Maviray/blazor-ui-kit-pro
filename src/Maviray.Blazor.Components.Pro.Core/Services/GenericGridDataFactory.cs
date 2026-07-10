@@ -96,6 +96,7 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
 
         if (collection.Columns.Count == 0)
         {
+            ConstructColumnsForEmptyCollection(collection);
             return collection;
         }
 
@@ -336,6 +337,44 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
         }
 
         return skip;
+    }
+
+    private static void ConstructColumnsForEmptyCollection(MaviGridCollection<TKey> collection)
+    {
+        var type = typeof(TModel);
+        
+        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+        foreach (var prop in properties)
+        {
+            if (prop.GetCustomAttribute<GridDataPropertyAttribute>() == null)
+            {
+                continue;
+            }
+
+            var column = collection.Columns.FirstOrDefault(c => c.Key == prop.Name);
+
+            if (column != null)
+            {
+                continue;
+            }
+
+            column = new()
+            {
+                Key = prop.Name,
+                Title = DeterminePropertyTitle(prop),
+                GridPropertyType = GetPropertyType(prop.PropertyType),
+                Sequence = GetGridDataPropertySequence(prop),
+                MaviGridColumnBehavior = GetGridDataPropertyCellBehavior(prop),
+                GraphicDisplay = HasAdvancedDisplay(prop),
+                Sortable = false,
+                Filterable = false
+            };
+
+            ProcessColumn(column, prop);
+
+            collection.Columns.Add(column);
+        }
     }
 
     private static MaviGridRow<TKey> ConstructCollectionRow(
