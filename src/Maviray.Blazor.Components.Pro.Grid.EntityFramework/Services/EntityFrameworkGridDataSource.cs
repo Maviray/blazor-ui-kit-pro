@@ -23,17 +23,13 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
         _logger = logger;
     }
 
-    private async Task InitializeContext()
-    {
-        _dbContext ??= await _contextFactory.CreateDbContextAsync();
-        _dbSet ??= _dbContext.Set<TDataItem>();
-    }
-
     public async Task<int> Count(Expression<Func<TDataItem, bool>>? filter = null)
     {
-        await InitializeContext();
-
-        if (_dbSet == null)
+        await using var dbContext = await _contextFactory.CreateDbContextAsync();
+        var dbSet = dbContext.Set<TDataItem>();
+        
+        
+        if (dbSet == null)
         {
             throw new InvalidOperationException(DB_SET_NULL);
         }
@@ -43,7 +39,7 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
             _logger.LogDebug
                 ("Counting items in the data source.");
 
-            return await _dbSet.CountAsync();
+            return await dbSet.CountAsync();
         }
         else
         {
@@ -51,13 +47,19 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
                 "Counting items in the data source. Filter: {Filter}",
                 filter.ToString());
 
-            return await _dbSet.Where(filter).CountAsync();
+            return await dbSet.Where(filter).CountAsync();
         }
     }
 
     public async Task<IQueryable<TDataItem>?> Get(SortOrder sortOrder, string orderBy, int skip, int numberOfItemsToTake, Expression<Func<TDataItem, bool>>? filter = null, IReadOnlyCollection<string>? includePaths = null, GridIncludeConfigurator<TDataItem>? includeConfigurator = null, object? orderByNullDefault = null)
     {
-        await InitializeContext();
+        if (_dbContext != null)
+        {
+            await _dbContext.DisposeAsync();
+        }
+
+        _dbContext = await _contextFactory.CreateDbContextAsync();
+        _dbSet = _dbContext.Set<TDataItem>();
 
         if (_dbSet == null)
         {
@@ -79,13 +81,7 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
         // Eager-load the requested navigation properties so nested grid columns are populated.
         if (includePaths != null)
         {
-            foreach (var includePath in includePaths)
-            {
-                if (!string.IsNullOrWhiteSpace(includePath))
-                {
-                    query = query.Include(includePath);
-                }
-            }
+            query = includePaths.Where(includePath => !string.IsNullOrWhiteSpace(includePath)).Aggregate(query, (current, includePath) => current.Include(includePath));
         }
 
         // Apply the consumer-supplied include tree (e.g. Include(...).ThenInclude(...)) so related
