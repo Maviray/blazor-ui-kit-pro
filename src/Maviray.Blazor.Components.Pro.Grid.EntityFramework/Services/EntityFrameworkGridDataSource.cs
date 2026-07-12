@@ -15,7 +15,6 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
     private readonly ILogger<EntityFrameworkGridDataSource<TDataItem, TDbContext>> _logger;
 
     private TDbContext? _dbContext;
-    private DbSet<TDataItem>? _dbSet;
 
     public EntityFrameworkGridDataSource(IDbContextFactory<TDbContext> dbContextFactory, ILogger<EntityFrameworkGridDataSource<TDataItem, TDbContext>> logger)
     {
@@ -27,13 +26,7 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
     {
         await using var dbContext = await _contextFactory.CreateDbContextAsync();
         var dbSet = dbContext.Set<TDataItem>();
-        
-        
-        if (dbSet == null)
-        {
-            throw new InvalidOperationException(DB_SET_NULL);
-        }
-
+    
         if (filter == null)
         {
             _logger.LogDebug
@@ -59,12 +52,7 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
         }
 
         _dbContext = await _contextFactory.CreateDbContextAsync();
-        _dbSet = _dbContext.Set<TDataItem>();
-
-        if (_dbSet == null)
-        {
-            throw new InvalidOperationException(DB_SET_NULL);
-        }
+        var dbSet = _dbContext.Set<TDataItem>();
 
         _logger.LogDebug(
             "Getting items from data source. SortOrder: {SortOrder}, OrderBy: {OrderBy}, Skip: {Skip}, Take: {Take}, Filter: {Filter}, Includes: {Includes}, IncludeConfigurator: {IncludeConfigurator}",
@@ -76,7 +64,7 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
             includePaths == null || includePaths.Count == 0 ? "none" : string.Join(", ", includePaths),
             includeConfigurator == null ? "none" : "supplied");
 
-        IQueryable<TDataItem> query = _dbSet;
+        IQueryable<TDataItem> query = dbSet;
 
         // Eager-load the requested navigation properties so nested grid columns are populated.
         if (includePaths != null)
@@ -97,7 +85,7 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
             query = query.Where(filter);
         }
 
-        return query.OrderByDynamic(orderBy, sortOrder, orderByNullDefault).Skip(skip).Take(numberOfItemsToTake);
+        return query.OrderByDynamic(orderBy, sortOrder, orderByNullDefault).Skip(skip).Take(numberOfItemsToTake).AsNoTracking();
     }
 
     /// <summary>
