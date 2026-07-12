@@ -15,7 +15,6 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
     private readonly ILogger<EntityFrameworkGridDataSource<TDataItem, TDbContext>> _logger;
 
     private TDbContext? _dbContext;
-    private DbSet<TDataItem>? _dbSet;
 
     public EntityFrameworkGridDataSource(IDbContextFactory<TDbContext> dbContextFactory, ILogger<EntityFrameworkGridDataSource<TDataItem, TDbContext>> logger)
     {
@@ -23,27 +22,17 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
         _logger = logger;
     }
 
-    private async Task InitializeContext()
-    {
-        _dbContext ??= await _contextFactory.CreateDbContextAsync();
-        _dbSet ??= _dbContext.Set<TDataItem>();
-    }
-
     public async Task<int> Count(Expression<Func<TDataItem, bool>>? filter = null)
     {
-        await InitializeContext();
-
-        if (_dbSet == null)
-        {
-            throw new InvalidOperationException(DB_SET_NULL);
-        }
-
+        await using var dbContext = await _contextFactory.CreateDbContextAsync();
+        var dbSet = dbContext.Set<TDataItem>();
+    
         if (filter == null)
         {
             _logger.LogDebug
                 ("Counting items in the data source.");
 
-            return await _dbSet.CountAsync();
+            return await dbSet.CountAsync();
         }
         else
         {
@@ -51,18 +40,19 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
                 "Counting items in the data source. Filter: {Filter}",
                 filter.ToString());
 
-            return await _dbSet.Where(filter).CountAsync();
+            return await dbSet.Where(filter).CountAsync();
         }
     }
 
     public async Task<IQueryable<TDataItem>?> Get(SortOrder sortOrder, string orderBy, int skip, int numberOfItemsToTake, Expression<Func<TDataItem, bool>>? filter = null, IReadOnlyCollection<string>? includePaths = null, GridIncludeConfigurator<TDataItem>? includeConfigurator = null, object? orderByNullDefault = null)
     {
-        await InitializeContext();
-
-        if (_dbSet == null)
+        if (_dbContext != null)
         {
-            throw new InvalidOperationException(DB_SET_NULL);
+            await _dbContext.DisposeAsync();
         }
+
+        _dbContext = await _contextFactory.CreateDbContextAsync();
+        var dbSet = _dbContext.Set<TDataItem>();
 
         _logger.LogDebug(
             "Getting items from data source. SortOrder: {SortOrder}, OrderBy: {OrderBy}, Skip: {Skip}, Take: {Take}, Filter: {Filter}, Includes: {Includes}, IncludeConfigurator: {IncludeConfigurator}",
@@ -74,18 +64,12 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
             includePaths == null || includePaths.Count == 0 ? "none" : string.Join(", ", includePaths),
             includeConfigurator == null ? "none" : "supplied");
 
-        IQueryable<TDataItem> query = _dbSet;
+        IQueryable<TDataItem> query = dbSet;
 
         // Eager-load the requested navigation properties so nested grid columns are populated.
         if (includePaths != null)
         {
-            foreach (var includePath in includePaths)
-            {
-                if (!string.IsNullOrWhiteSpace(includePath))
-                {
-                    query = query.Include(includePath);
-                }
-            }
+            query = includePaths.Where(includePath => !string.IsNullOrWhiteSpace(includePath)).Aggregate(query, (current, includePath) => current.Include(includePath));
         }
 
         // Apply the consumer-supplied include tree (e.g. Include(...).ThenInclude(...)) so related
@@ -101,7 +85,7 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
             query = query.Where(filter);
         }
 
-        return query.OrderByDynamic(orderBy, sortOrder, orderByNullDefault).Skip(skip).Take(numberOfItemsToTake);
+        return query.OrderByDynamic(orderBy, sortOrder, orderByNullDefault).Skip(skip).Take(numberOfItemsToTake).AsNoTracking();
     }
 
     /// <summary>
