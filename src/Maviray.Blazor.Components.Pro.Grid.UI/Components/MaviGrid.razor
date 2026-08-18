@@ -49,7 +49,7 @@
             }
         </div>
     </MaviDialog>
-    @if (_collection != null && _collection.Rows.Any())
+    @if (_collection != null)
     {
         <div class="grid divide-y divide-zinc-200" style="grid-template-columns: repeat(@VisibleColumnsCount, minmax(min-content, 200px))">
             @* Header row *@
@@ -57,8 +57,8 @@
             {
                 <div class="@GetColumnHeaderContainerCss(column)">
                     <div class="@GetColumnHeaderCss(column)">
-                        <div class="@Tailwind.Theme.Typography.LABEL_LARGE cursor-pointer select-none transition-colors @Tailwind.Theme.Colors.Text.Hover.THEME_DEFAULT_TEN_TEXT_HOVER flex items-center gap-2"
-                            @onclick="() => SortByColumn(column.Key)">
+                        <div class="@Tailwind.Theme.Typography.LABEL_LARGE select-none transition-colors flex items-center gap-2 @(column.Sortable ? $"cursor-pointer {Tailwind.Theme.Colors.Text.Hover.THEME_DEFAULT_TEN_TEXT_HOVER}" : "cursor-default opacity-70")"
+                            @onclick="() => SortByColumn(column)">
                             <span>@column.Title</span>
                             @if (_collection?.SortColumnKey == column.Key)
                             {
@@ -116,11 +116,14 @@
                 @foreach (var column in GetVisibleColumns())
                 {
                     <div class="px-4 py-2 bg-zinc-50">
-                        <input type="text"
-                               id="@($"filter-{column.Key}-{Id}")"
-                               class="@GetSearchInputCss()"
-                               placeholder="@Parameters?.FilterPlaceholderText"
-                               @oninput="(e) => UpdateColumnFilter(column.Key, e)"/>
+                        @if (column.Filterable)
+                        {
+                            <input type="text"
+                                   id="@($"filter-{column.Key}-{Id}")"
+                                   class="@GetSearchInputCss()"
+                                   placeholder="@Parameters?.FilterPlaceholderText"
+                                   @oninput="(e) => UpdateColumnFilter(column.Key, e)"/>
+                        }
                     </div>
                 }
                 @if (Parameters?.DisplaySelectColumn == true)
@@ -130,7 +133,7 @@
                 <div class="px-4 py-2 bg-zinc-50"></div>
             }
             @* Data rows *@
-            @if (_collection != null)
+            @if (_collection != null && _collection.Rows.Any())
             {
                 foreach (var (row, rowIndex) in _collection.Rows.Select((r, i) => (r, i)))
                 {
@@ -205,50 +208,67 @@
                     </div>
                 }
             }
-
-            @* ── Footer row – always spans every column ── *@
-            <div id="@($"pagination-{Id}")" class="col-span-full" @onclick:stopPropagation="true">
-                <div class="@GetFooterRowCss()">
-                    <div class="flex items-center gap-2">
-                        <span class="@GetPaginationTextCss()">@Parameters?.RowsPerPageText</span>
-                        <select id="@($"select-row-number-{Id}")"
-                                class="@GetCountPerPageSelectCss()"
-                                @onchange="UpdatePageSize"
-                                @onclick:stopPropagation="true"
-                                title="@Parameters?.SelectNumberOfRowsToDisplayText">
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                        </select>
-                        
-                        <MaviButtonIcon Icon="lni lni-sliders-horizontal-square-2"
-                                        ElementVariant="ElementVariant.Text"
-                                        ThemeColorScheme="ThemeColorScheme.Dark"
-                                        ElementSize="ElementSize.Regular"
-                                        OnClick="KickOffSetVisibleColumnsModal"
-                                        Title="Set Visible Columns" />
-                    </div>
-                    
-                    <div class="flex items-center gap-3">
-                        <div>
-                            <input id="@($"goto-page-{Id}")"
-                                   class="@GetCountPerPageSelectCss()"
-                                   title="Go To Page"
-                                   type="number"
-                                   min="1"
-                                   max="@(_collection?.TotalPages ?? 1)"
-                                   @bind="_gridState.GoToPage"
-                                   @bind:after="OnGoToPage" />
+            else
+            {
+                <div class="w-full min-h-40 flex items-center justify-center col-span-full" style="min-width:20rem">
+                    @if (!_busy)
+                    {
+                        <div class="flex items-center gap-4">
+                            <div class="@Tailwind.Theme.Typography.BODY_LARGE @Tailwind.Theme.Colors.Text.THEME_DEFAULT_SEVEN_TEXT">@Parameters?.NoDataAvailableTitle</div>
+                            <MaviButtonIcon Icon="lni lni-refresh-circle-1-clockwise"
+                                            ElementVariant="ElementVariant.Filled"
+                                            ThemeColorScheme="ThemeColorScheme.Default"
+                                            ElementSize="ElementSize.Large"
+                                            OnClick="ClearFiltersAndReload"
+                                            Title="Reload"/>
                         </div>
+                    }
+                </div>
+            }
+            
+            @if (_collection is { Rows.Count: > 0 })
+            {
+                @* ── Footer row – always spans every column ── *@
+                <div id="@($"pagination-{Id}")" class="col-span-full" @onclick:stopPropagation="true">
+                    <div class="@GetFooterRowCss()">
+                        <div class="flex items-center gap-2">
+                            <span class="@GetPaginationTextCss()">@Parameters?.RowsPerPageText</span>
+                            <select id="@($"select-row-number-{Id}")"
+                                    class="@GetCountPerPageSelectCss()"
+                                    @onchange="UpdatePageSize"
+                                    @onclick:stopPropagation="true"
+                                    title="@Parameters?.SelectNumberOfRowsToDisplayText">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+
+                            <MaviButtonIcon Icon="lni lni-sliders-horizontal-square-2"
+                                            ElementVariant="ElementVariant.Text"
+                                            ThemeColorScheme="ThemeColorScheme.Dark"
+                                            ElementSize="ElementSize.Regular"
+                                            OnClick="KickOffSetVisibleColumnsModal"
+                                            Title="Set Visible Columns" />
+                        </div>
+
                         <div class="flex items-center gap-3">
-                            @if (_collection is { Rows.Count: > 0 })
-                            {
+                            <div>
+                                <input id="@($"goto-page-{Id}")"
+                                       class="@GetCountPerPageSelectCss()"
+                                       title="Go To Page"
+                                       type="number"
+                                       min="1"
+                                       max="@(_collection?.TotalPages ?? 1)"
+                                       @bind="_gridState.GoToPage"
+                                       @bind:after="OnGoToPage" />
+                            </div>
+                            <div class="flex items-center gap-3">
                                 <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
                                     <MaviIconOnline IconOnlineType="IconOnlineType.ChevronLeftOnline"
                                                     IconColor="ElementColor.DimGrey"
                                                     IconSize="GetIconSize()"
-                                                    OnClick="PrevPage"/>
+                                                    OnClick="PrevPage" />
                                 </div>
                                 <span class="@GetPaginationTextCss()">
                                     @_collection?.FirstRowIndex–@_collection?.LastRowIndex of @_collection?.TotalRows
@@ -257,14 +277,15 @@
                                     <MaviIconOnline IconOnlineType="IconOnlineType.ChevronRightOnline"
                                                     IconColor="ElementColor.DimGrey"
                                                     IconSize="GetIconSize()"
-                                                    OnClick="NextPage"/>
+                                                    OnClick="NextPage" />
                                 </div>
-                            }
+                            </div>
                         </div>
+
                     </div>
-                    
                 </div>
-            </div>
+            }
+           
         </div>
     }
     else
@@ -618,17 +639,22 @@
         }
     }
 
-    protected async Task SortByColumn(string columnKey)
+    protected async Task SortByColumn(MaviGridColumn column)
     {
+        if (!column.Sortable)
+        {
+            return;
+        }
+
         try
         {
-            if (_queryParameters.OrderByColumnKey == columnKey)
+            if (_queryParameters.OrderByColumnKey == column.Key)
             {
                 _queryParameters.SortOrder = _queryParameters.SortOrder == SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;
             }
             else
             {
-                _queryParameters.OrderByColumnKey = columnKey;
+                _queryParameters.OrderByColumnKey = column.Key;
                 _queryParameters.SortOrder = SortOrder.Ascending;
             }
 
@@ -641,7 +667,7 @@
         }
         catch (Exception ex)
         {
-            Logger?.Error(ex, $"An error occurred while sorting by column with key '{columnKey}'.");
+            Logger?.Error(ex, $"An error occurred while sorting by column with key '{column.Key}'.");
         }
     }
 

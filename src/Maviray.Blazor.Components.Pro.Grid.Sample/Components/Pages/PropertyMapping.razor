@@ -1,0 +1,74 @@
+@page "/property-mapping"
+@using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Enums
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Models
+@using Maviray.Blazor.Components.Pro.Grid.UI.Components
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>Custom Property Mapping</PageTitle>
+
+<div class="p-4 flex flex-col gap-4">
+    <div class="text-sm text-zinc-600 max-w-3xl">
+        This grid shows <code>OrderItem</code>, whose <code>OrderItemGridModel</code> mixes four
+        kinds of columns: direct one-to-one properties (<strong>Id</strong>, <strong>Product Name</strong>,
+        <strong>Is Backordered</strong>, <strong>Quantity</strong>, <strong>Unit Price</strong>), properties
+        mapped through related entities via <code>GridPropertyPathMap</code> (<strong>Order Number</strong>,
+        <strong>Customer Company</strong>, <strong>Country</strong>), properties resolved the same way but
+        with a coalesced default for a customer with no region (<strong>Region Rating (or Default)</strong>,
+        <strong>Is International (or Default)</strong>), and two genuinely computed columns with no single
+        backing path (<strong>Total Line Value</strong>, <strong>Full Description</strong>) &mdash; those two
+        have no sort-click affordance and no filter input, since they can't be resolved.
+    </div>
+
+    <MaviGrid @ref="_grid"
+              TDataItem="OrderItem"
+              TModel="OrderItemGridModel"
+              TKey="int"
+              FetchData="FetchGridData"
+              Parameters="_gridParameters" />
+</div>
+
+@code
+{
+    private readonly MaviGridParameters _gridParameters = new()
+    {
+        EnableFilters = true
+    };
+
+    private MaviGrid<OrderItem, OrderItemGridModel, int>? _grid;
+
+    [Inject]
+    private IGenericGridDataFactory<OrderItem, OrderItemGridModel, int>? DataFactory { get; set; }
+
+    private static readonly GridPropertyPathMap<OrderItem, OrderItemGridModel> PropertyPathMap = new GridPropertyPathMap<OrderItem, OrderItemGridModel>()
+        .Map(m => m.OrderNumber, "Order.OrderNumber")
+        .Map(m => m.CustomerCompanyName, "Order.Customer.CompanyName")
+        .Map(m => m.CountryName, "Order.Customer.Region.Country.CountryName")
+        .Map(m => m.RegionRatingOrDefault, "Order.Customer.Region.Rating", nullDefault: RatingEnum.Low)
+        .Map(m => m.IsInternationalOrDefault, "Order.Customer.Region.IsInternational", nullDefault: false);
+
+    private static IQueryable<OrderItem> BuildQuery(IQueryable<OrderItem> query) =>
+        query
+            .Include(i => i.Order)
+            .ThenInclude(o => o!.Customer)
+            .ThenInclude(c => c!.Region)
+            .ThenInclude(r => r!.Country);
+
+    private async Task<MaviGridCollection<int>?> FetchGridData(MaviGridDataQueryParameters parameters)
+    {
+        if (string.IsNullOrWhiteSpace(parameters.OrderByColumnKey))
+        {
+            parameters.OrderByColumnKey = "Id";
+        }
+
+        if (DataFactory == null)
+        {
+            return null;
+        }
+
+        return await DataFactory.BuildDataCollection(parameters, includeConfigurator: BuildQuery, propertyPathMap: PropertyPathMap);
+    }
+}

@@ -47,18 +47,23 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
     public async Task<MaviGridCollection<TKey>?> BuildDataCollection(
         MaviGridDataQueryParameters queryParameters,
         Expression<Func<TDataItem, bool>>? additionalFilter = null,
-        IReadOnlyDictionary<string, Func<MaviGridCell<TKey>, object?, ThemeColorScheme>>? cellThemeResolvers = null)
+        IReadOnlyDictionary<string, Func<MaviGridCell<TKey>, object?, ThemeColorScheme>>? cellThemeResolvers = null,
+        GridIncludeConfigurator<TDataItem>? includeConfigurator = null,
+        GridPropertyPathMap<TDataItem, TModel>? propertyPathMap = null)
     {
         if (string.IsNullOrWhiteSpace(queryParameters.OrderByColumnKey))
         {
             queryParameters.OrderByColumnKey = QueryConstants.ID;
         }
 
+        var resolvedOrderBy = ResolveDataItemPath(queryParameters.OrderByColumnKey, propertyPathMap)
+            ?? new GridPropertyPath(QueryConstants.ID, null);
+
         Expression<Func<TDataItem, bool>>? filter = null;
 
         if (queryParameters.Filters != null && queryParameters.Filters.Any())
         {
-            filter = ConstructFilter(queryParameters.Filters);
+            filter = ConstructFilter(queryParameters.Filters, propertyPathMap);
         }
 
         // Incorporate the consumer-supplied filter (e.g. permission or scope constraints) by
@@ -80,17 +85,18 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
 
         IQueryable<TDataItem> ? resultingData = null;
 
-        resultingData = await _dataSource.Get(queryParameters.SortOrder, queryParameters.OrderByColumnKey, skip, numberOfItemsToTake, filter, NavigationIncludePaths);
+        resultingData = await _dataSource.Get(queryParameters.SortOrder, resolvedOrderBy.DataItemPath, skip, numberOfItemsToTake, filter, NavigationIncludePaths, includeConfigurator, resolvedOrderBy.NullDefault);
 
         if (resultingData == null)
         {
             return null;
         }
 
-        var collection = ConstructCollection(resultingData, cellThemeResolvers);
+        var collection = ConstructCollection(resultingData, cellThemeResolvers, propertyPathMap);
 
         if (collection.Columns.Count == 0)
         {
+            ConstructColumnsForEmptyCollection(collection);
             return collection;
         }
 
@@ -137,7 +143,8 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
 
     public MaviGridCollection<TKey> ConstructCollection(
         IQueryable<TDataItem> queryable,
-        IReadOnlyDictionary<string, Func<MaviGridCell<TKey>, object?, ThemeColorScheme>>? cellThemeResolvers = null)
+        IReadOnlyDictionary<string, Func<MaviGridCell<TKey>, object?, ThemeColorScheme>>? cellThemeResolvers = null,
+        GridPropertyPathMap<TDataItem, TModel>? propertyPathMap = null)
     {
         var type = typeof(TModel);
 
@@ -150,14 +157,14 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
             var gridModelItem = dataItem.Adapt<TModel>(MappingConfig);
             gridModelItem.ConstructFrom(dataItem);
 
-            var row = ConstructCollectionRow(gridModelItem, properties, collection.Columns, cellThemeResolvers);
+            var row = ConstructCollectionRow(gridModelItem, properties, collection.Columns, cellThemeResolvers, propertyPathMap);
             collection.Rows.Add(row);
         }
 
         return collection;
     }
 
-    private static Expression<Func<TDataItem, bool>>? ConstructFilter(IEnumerable<GridFilterModel> filters)
+    private static Expression<Func<TDataItem, bool>>? ConstructFilter(IEnumerable<GridFilterModel> filters, GridPropertyPathMap<TDataItem, TModel>? propertyPathMap)
     {
         Expression<Func<TDataItem, bool>>? expression = null;
 
@@ -168,12 +175,62 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
                 continue;
             }
 
-            var filterExpression = QueryBuilder<TDataItem, TKey>.BuildFilterExpression(item.Key, item.GridFilterCriteria, item.Value);
+            var resolvedPath = ResolveDataItemPath(item.Key, propertyPathMap);
+
+            if (resolvedPath == null)
+            {
+                // No resolvable TDataItem path for this TModel property (neither an explicit map
+                // entry nor an identically-named member) - drop the term instead of throwing.
+                continue;
+            }
+
+            var filterExpression = QueryBuilder<TDataItem, TKey>.BuildFilterExpression(resolvedPath.DataItemPath, item.GridFilterCriteria, item.Value, resolvedPath.NullDefault);
 
             expression = expression == null ? filterExpression : QueryBuilder<TDataItem, TKey>.CombineExpressions(expression, filterExpression, MaviCombineExpressionCriteria.AndAlso);
         }
 
         return expression;
+    }
+
+    /// <summary>
+    /// Resolves a <typeparamref name="TModel"/> property name to the <typeparamref name="TDataItem"/>
+    /// dot-path the data source should sort/filter by: an explicit entry in
+    /// <paramref name="propertyPathMap"/> takes precedence, then an identically-named member on
+    /// <typeparamref name="TDataItem"/> (today's existing behavior), otherwise <see langword="null"/> -
+    /// the property is not sortable/filterable.
+    /// </summary>
+    private static GridPropertyPath? ResolveDataItemPath(string modelPropertyName, GridPropertyPathMap<TDataItem, TModel>? propertyPathMap)
+    {
+        if (propertyPathMap != null && propertyPathMap.TryResolve(modelPropertyName, out var mappedPath))
+        {
+            return DataItemPathExists(mappedPath.DataItemPath) ? mappedPath : null;
+        }
+
+        return DataItemPathExists(modelPropertyName) ? new GridPropertyPath(modelPropertyName, null) : null;
+    }
+
+    /// <summary>
+    /// Reflection-only existence check mirroring the member lookup <see cref="Expression.PropertyOrField(Expression, string)"/>
+    /// performs, without throwing when a segment is missing.
+    /// </summary>
+    private static bool DataItemPathExists(string dotPath)
+    {
+        var currentType = typeof(TDataItem);
+
+        foreach (var segment in dotPath.Split('.'))
+        {
+            MemberInfo? member = currentType.GetProperty(segment, BindingFlags.Public | BindingFlags.Instance);
+            member ??= currentType.GetField(segment, BindingFlags.Public | BindingFlags.Instance);
+
+            if (member == null)
+            {
+                return false;
+            }
+
+            currentType = member is PropertyInfo property ? property.PropertyType : ((FieldInfo)member).FieldType;
+        }
+
+        return true;
     }
 
     private Expression<Func<TDataItem, bool>>? BuildGlobalFilter()
@@ -282,11 +339,50 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
         return skip;
     }
 
+    private static void ConstructColumnsForEmptyCollection(MaviGridCollection<TKey> collection)
+    {
+        var type = typeof(TModel);
+        
+        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+        foreach (var prop in properties)
+        {
+            if (prop.GetCustomAttribute<GridDataPropertyAttribute>() == null)
+            {
+                continue;
+            }
+
+            var column = collection.Columns.FirstOrDefault(c => c.Key == prop.Name);
+
+            if (column != null)
+            {
+                continue;
+            }
+
+            column = new()
+            {
+                Key = prop.Name,
+                Title = DeterminePropertyTitle(prop),
+                GridPropertyType = GetPropertyType(prop.PropertyType),
+                Sequence = GetGridDataPropertySequence(prop),
+                MaviGridColumnBehavior = GetGridDataPropertyCellBehavior(prop),
+                GraphicDisplay = HasAdvancedDisplay(prop),
+                Sortable = false,
+                Filterable = false
+            };
+
+            ProcessColumn(column, prop);
+
+            collection.Columns.Add(column);
+        }
+    }
+
     private static MaviGridRow<TKey> ConstructCollectionRow(
         TModel gridModel,
         PropertyInfo[] properties,
         List<MaviGridColumn> columns,
-        IReadOnlyDictionary<string, Func<MaviGridCell<TKey>, object?, ThemeColorScheme>>? cellThemeResolvers)
+        IReadOnlyDictionary<string, Func<MaviGridCell<TKey>, object?, ThemeColorScheme>>? cellThemeResolvers,
+        GridPropertyPathMap<TDataItem, TModel>? propertyPathMap)
     {
         var row = new MaviGridRow<TKey> { Key = gridModel.Key };
 
@@ -301,6 +397,8 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
 
                 if (column == null)
                 {
+                    var resolvedPath = ResolveDataItemPath(prop.Name, propertyPathMap);
+
                     column = new()
                     {
                         Key = prop.Name,
@@ -308,7 +406,9 @@ public class GenericGridDataFactory<TDataItem, TModel, TKey> : IGenericGridDataF
                         GridPropertyType = GetPropertyType(prop.PropertyType),
                         Sequence = GetGridDataPropertySequence(prop),
                         MaviGridColumnBehavior = GetGridDataPropertyCellBehavior(prop),
-                        GraphicDisplay = HasAdvancedDisplay(prop)
+                        GraphicDisplay = HasAdvancedDisplay(prop),
+                        Sortable = resolvedPath != null,
+                        Filterable = resolvedPath != null
                     };
 
                     ProcessColumn(column, prop);

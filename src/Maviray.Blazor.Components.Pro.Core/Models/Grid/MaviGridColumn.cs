@@ -11,7 +11,7 @@ public class MaviGridColumn
     public bool Active { get; set; }
     public bool Visible { get; set; } = true;
     public int Sequence { get; set; }
-    public SortOrder SortOrder { get; set; } 
+    public SortOrder SortOrder { get; set; }
     public MaviGridColumnCellBehavior MaviGridColumnBehavior { get; set; }
     public MaviGridColumnType GridColumnType { get; set; }
     public MaviGridPropertyType GridPropertyType { get; set; }
@@ -25,6 +25,14 @@ public class MaviGridColumn
     // When true, the column's cells should be rendered with an advanced/graphical presentation
     // (e.g. a badge) instead of plain text. Driven by GridAdvancedDisplayAttribute on the model property.
     public bool GraphicDisplay { get; set; }
+
+    // When true, the column's header gets a clickable sort affordance. False when the property could
+    // not be resolved to a TDataItem path (see GridPropertyPathMap) - set once per column at build time.
+    public bool Sortable { get; set; } = true;
+
+    // When true, the column renders a filter input. False when the property could not be resolved to
+    // a TDataItem path (see GridPropertyPathMap) - set once per column at build time.
+    public bool Filterable { get; set; } = true;
 
     public Dictionary<string, string>? PossibleFilterValues { get; set; } = [];
 }
