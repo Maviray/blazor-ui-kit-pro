@@ -29,15 +29,17 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
     
         if (filter == null)
         {
-            _logger.LogDebug
-                ("Counting items in the data source.");
+            _logger.LogDebug(
+                "Counting items in the data source. Items Type: {ItemsType}",
+                typeof(TDataItem).Name);
 
             return await dbSet.CountAsync();
         }
         else
         {
             _logger.LogDebug(
-                "Counting items in the data source. Filter: {Filter}",
+                "Counting items in the data source. Items Type: {ItemsType}, Filter: {Filter}",
+                typeof(TDataItem).Name,
                 filter.ToString());
 
             return await dbSet.Where(filter).CountAsync();
@@ -55,7 +57,8 @@ public class EntityFrameworkGridDataSource<TDataItem, TDbContext> : IGridDataSou
         var dbSet = _dbContext.Set<TDataItem>();
 
         _logger.LogDebug(
-            "Getting items from data source. SortOrder: {SortOrder}, OrderBy: {OrderBy}, Skip: {Skip}, Take: {Take}, Filter: {Filter}, Includes: {Includes}, IncludeConfigurator: {IncludeConfigurator}",
+            "Getting items from data source. Items Type: {ItemsType}, SortOrder: {SortOrder}, OrderBy: {OrderBy}, Skip: {Skip}, Take: {Take}, Filter: {Filter}, Includes: {Includes}, IncludeConfigurator: {IncludeConfigurator}",
+            typeof(TDataItem).Name,
             sortOrder,
             orderBy,
             skip,
