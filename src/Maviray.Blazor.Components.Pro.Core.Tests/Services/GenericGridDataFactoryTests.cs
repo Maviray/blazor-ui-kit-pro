@@ -93,7 +93,7 @@ public class GenericGridDataFactoryTests
 
         var factory = CreateFactory(SampleOrders());
 
-        var parameters = new MaviGridDataQueryParameters();
+        var parameters = new MaviGridDataQueryParameters { SortOrder = SortOrder.Ascending };
         parameters.AddFilter("ApprovedOrDefault", "false", MaviGridFilterCriteria.IsFalse);
 
         var result = await factory.BuildDataCollection(parameters, propertyPathMap: propertyPathMap);
