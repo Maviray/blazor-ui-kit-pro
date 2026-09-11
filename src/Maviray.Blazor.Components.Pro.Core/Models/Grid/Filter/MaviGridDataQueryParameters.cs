@@ -5,7 +5,7 @@ namespace Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter;
 
 public class MaviGridDataQueryParameters
 {
-    public SortOrder SortOrder { get; set; } = SortOrder.Ascending;
+    public SortOrder SortOrder { get; set; } = SortOrder.Descending;
     public int NumberOfItemsPerPage { get; set; } = 10;
     public int PageNumber { get; set; } = 1;
     public string? OrderByColumnKey { get; set; }

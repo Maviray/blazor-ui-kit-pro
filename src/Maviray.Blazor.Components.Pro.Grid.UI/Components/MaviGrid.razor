@@ -392,6 +392,7 @@
         base.OnParametersSet();
 
         _gridState.TableRowContextMenuDisplayStyle = Parameters?.TableRowContextMenuDisplayStyle ?? TableRowContextMenuDisplayStyle.DropDown;
+        _queryParameters?.SortOrder = Parameters?.SortOrder ?? SortOrder.Descending;
     }
 
     protected override async Task OnInitializedAsync()
