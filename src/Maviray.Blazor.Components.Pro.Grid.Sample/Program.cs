@@ -19,8 +19,10 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
+            // The sample keeps its data in memory: no database server or connection string is needed.
+            // The database starts empty on every run and SampleDbSeeder fills it before the app starts.
             builder.Services.AddDbContextFactory<SampleDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("SampleDb")));
+                options.UseInMemoryDatabase("SampleDb"));
 
             builder.Services.AddMaviComponents(options => options.EnableLifecycleLogging = false);
 
