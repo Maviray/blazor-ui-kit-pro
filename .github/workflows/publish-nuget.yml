@@ -70,12 +70,13 @@ jobs:
         echo "📦 Package Version: $FINAL_VERSION"
         echo "🌿 Branch: $BRANCH_NAME"
         
-    # ✅ Authenticate BEFORE restore so the private feed is available
+    # Authenticate BEFORE restore: GitHub Packages needs a token even for public packages.
+    # GITHUB_TOKEN can read public packages from other repos (e.g. blazor-ui-kit), so no PAT is needed.
     - name: Configure GitHub Packages source
       run: |
         dotnet nuget update source "github" \
           --username "${{ github.actor }}" \
-          --password "${{ secrets.NUGET_READ_PAT }}" \
+          --password "${{ secrets.GITHUB_TOKEN }}" \
           --store-password-in-clear-text
 
     - name: Restore dependencies
