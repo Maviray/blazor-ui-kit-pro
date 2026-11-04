@@ -14,8 +14,8 @@
 	  <Copyright>Copyright @2026 Maviray</Copyright>
 	  <Description>Blazor UI Core library</Description>
 	  <PackageTags>blazor;components;ui;maviray</PackageTags>
-	  <RepositoryUrl>https://github.com/Maviray/blazor-ui-kit</RepositoryUrl>
-	  <PackageProjectUrl>https://github.com/Maviray/blazor-ui-kit</PackageProjectUrl>
+	  <RepositoryUrl>https://github.com/Maviray/blazor-ui-kit-pro</RepositoryUrl>
+	  <PackageProjectUrl>https://github.com/Maviray/blazor-ui-kit-pro</PackageProjectUrl>
 	  <RepositoryType>git</RepositoryType>
 	  <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
 	  <PackageReadmeFile>README.md</PackageReadmeFile>
