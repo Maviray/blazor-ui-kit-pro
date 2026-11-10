@@ -2,21 +2,14 @@
 
 namespace Maviray.Blazor.Components.Pro.Core.Attributes.Grid;
 
-[AttributeUsage(AttributeTargets.Property)]
-public class GridDataPropertyAttribute : Attribute
+/// <summary>
+/// Makes a model property a grid column. Columns are ordered by <see cref="Sequence"/>; equal sequences keep
+/// their declaration order.
+/// </summary>
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+public sealed class GridDataPropertyAttribute(int sequence, MaviGridColumnCellBehavior cellBehavior = MaviGridColumnCellBehavior.Default) : Attribute
 {
-    public int Sequence { get; init; }
-    public MaviGridColumnCellBehavior ColumnCellBehavior { get; init; }
+    public int Sequence { get; } = sequence;
 
-    public GridDataPropertyAttribute(int sequence)
-    {
-        Sequence = sequence;
-        ColumnCellBehavior = MaviGridColumnCellBehavior.Default;
-    }
-
-    public GridDataPropertyAttribute(int sequence, MaviGridColumnCellBehavior cellType)
-    {
-        Sequence = sequence;
-        ColumnCellBehavior = cellType;
-    }
+    public MaviGridColumnCellBehavior CellBehavior { get; } = cellBehavior;
 }

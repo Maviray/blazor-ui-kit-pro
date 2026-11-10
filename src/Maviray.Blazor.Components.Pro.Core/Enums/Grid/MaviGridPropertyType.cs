@@ -1,12 +1,9 @@
 ﻿namespace Maviray.Blazor.Components.Pro.Core.Enums.Grid;
 
 /// <summary>
-/// Category a model property is mapped to for filtering and cell display. These are behavioural
-/// categories rather than one-to-one CLR types: all integral types map to <see cref="Int"/>, all
-/// floating-point/decimal types to <see cref="Decimal"/>, and every point-in-time type
-/// (DateTime, DateTimeOffset, DateOnly, TimeOnly) to <see cref="DateTime"/>. Per-type display
-/// formatting is resolved from the runtime value, and the concrete CLR type is used when the filter
-/// value is converted.
+/// The kind of value a column holds, which decides how its cells are formatted and how its filter text is read.
+/// All integral types are <see cref="Int"/>, all floating-point and decimal types are <see cref="Decimal"/>, and
+/// <c>DateTime</c>, <c>DateTimeOffset</c>, <c>DateOnly</c> and <c>TimeOnly</c> are <see cref="DateTime"/>.
 /// </summary>
 public enum MaviGridPropertyType
 {
@@ -19,14 +16,5 @@ public enum MaviGridPropertyType
     Int,
     Decimal,
     Guid,
-    Enum,
-    NavString,
-    NavChar,
-    NavBool,
-    NavDateTime,
-    NavTimeSpan,
-    NavInt,
-    NavDecimal,
-    NavGuid,
-    NavEnum
+    Enum
 }

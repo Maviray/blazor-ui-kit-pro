@@ -3,11 +3,9 @@ using System.Linq.Expressions;
 namespace Maviray.Blazor.Components.Pro.Core.Services;
 
 /// <summary>
-/// Builds the property-access expression shared by <see cref="Extensions.QueryableExtensions.OrderByDynamic{TEntity}"/>
-/// and <see cref="QueryBuilder{TDataItem,TKey}.BuildFilterExpression"/>: walks a dotted property path off
-/// <paramref name="parameter"/>, then - only when <paramref name="nullDefault"/> is supplied - coalesces a
-/// <see langword="null"/> at that path to the given default, so a nullable navigation value sorts/filters
-/// at the data source the same way a model's <c>ConstructFrom</c> coalesces it in memory (e.g. <c>?? false</c>).
+/// Builds the member access for a dotted path off <paramref name="parameter"/>, shared by sorting and filtering.
+/// When a null default is given, a <see langword="null"/> at the path is coalesced to it, so a nullable value sorts
+/// and filters at the data source the way <c>ConstructFrom</c> coalesces it in memory (for example <c>?? false</c>).
 /// </summary>
 internal static class GridPropertyExpressionBuilder
 {
@@ -22,12 +20,10 @@ internal static class GridPropertyExpressionBuilder
 
         var underlyingType = Nullable.GetUnderlyingType(property.Type) ?? property.Type;
 
-        // Expression.Coalesce requires its left operand to be a reference type or Nullable<T>. A
-        // property reached through an optional navigation (e.g. Customer.Region?.Rating, where
-        // Region is optional but Rating is a plain non-nullable enum declared on Region itself)
-        // has a non-nullable static type even though the value can be missing at the database
-        // level - convert to Nullable<T> first so Coalesce is valid to construct.
-        Expression coalesceSource = property.Type.IsValueType && Nullable.GetUnderlyingType(property.Type) == null
+        // Coalesce needs a reference type or Nullable<T> on the left. A value reached through an optional navigation
+        // (Customer.Region.Rating with Region optional) has a non-nullable static type but can still be missing in the
+        // database, so lift it to Nullable<T> first.
+        var coalesceSource = property.Type.IsValueType && Nullable.GetUnderlyingType(property.Type) == null
             ? Expression.Convert(property, typeof(Nullable<>).MakeGenericType(property.Type))
             : property;
 

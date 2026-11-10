@@ -1,50 +1,45 @@
-using Maviray.Blazor.Components.Core.Enums;
 using Maviray.Blazor.Components.Pro.Core.Extensions;
 using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid;
-using System.Linq.Expressions;
 
 namespace Maviray.Blazor.Components.Pro.Core.Tests.Fixtures;
 
-public class FakeGridDataSource(IReadOnlyList<TestOrder> items) : IGridDataSource<TestOrder>
+/// <summary>In-memory data source that records every call it receives.</summary>
+public sealed class FakeGridDataSource(IReadOnlyList<TestOrder> items) : IGridDataSource<TestOrder>
 {
-    public Task<int> Count(Expression<Func<TestOrder, bool>>? filter = null)
+    public int CountCalls { get; private set; }
+    public int GetCalls { get; private set; }
+    public GridDataSourceQuery<TestOrder>? LastCountQuery { get; private set; }
+    public GridDataSourceQuery<TestOrder>? LastGetQuery { get; private set; }
+    public CancellationToken LastCountToken { get; private set; }
+    public CancellationToken LastGetToken { get; private set; }
+
+    public Task<int> CountAsync(GridDataSourceQuery<TestOrder> query, CancellationToken cancellationToken = default)
     {
-        IQueryable<TestOrder> query = items.AsQueryable();
+        CountCalls++;
+        LastCountQuery = query;
+        LastCountToken = cancellationToken;
 
-        if (filter != null)
-        {
-            query = query.Where(filter);
-        }
-
-        return Task.FromResult(query.Count());
+        return Task.FromResult(Filtered(query).Count());
     }
 
-    public Task<IQueryable<TestOrder>?> Get(
-        SortOrder sortOrder,
-        string orderBy,
-        int skip,
-        int numberOfItemsToTake,
-        Expression<Func<TestOrder, bool>>? filter = null,
-        IReadOnlyCollection<string>? includePaths = null,
-        GridIncludeConfigurator<TestOrder>? includeConfigurator = null,
-        object? orderByNullDefault = null)
+    public Task<IReadOnlyList<TestOrder>> GetPageAsync(GridDataSourceQuery<TestOrder> query, CancellationToken cancellationToken = default)
     {
-        IQueryable<TestOrder> query = items.AsQueryable();
+        GetCalls++;
+        LastGetQuery = query;
+        LastGetToken = cancellationToken;
 
-        if (includeConfigurator != null)
-        {
-            query = includeConfigurator(query);
-        }
+        var filtered = Filtered(query);
+        var ordered = query.Sort is { } sort
+            ? filtered.OrderByDynamic(sort.Path, sort.Order, sort.NullDefault).ThenByDynamic(nameof(TestOrder.Id), sort.Order)
+            : filtered.OrderBy(x => x.Id);
 
-        if (filter != null)
-        {
-            query = query.Where(filter);
-        }
-
-        var ordered = query.OrderByDynamic(orderBy, sortOrder, orderByNullDefault).Skip(skip).Take(numberOfItemsToTake);
-
-        return Task.FromResult<IQueryable<TestOrder>?>(ordered);
+        IReadOnlyList<TestOrder> page = ordered.Skip(query.Skip).Take(query.Take).ToList();
+        return Task.FromResult(page);
     }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    private IQueryable<TestOrder> Filtered(GridDataSourceQuery<TestOrder> query)
+    {
+        var source = items.AsQueryable();
+        return query.Filter is null ? source : source.Where(query.Filter);
+    }
 }

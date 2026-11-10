@@ -1,1286 +1,196 @@
-﻿@using Maviray.Blazor.Components.Core.Constants
+@using Maviray.Blazor.Components.Core.Components
 @using Maviray.Blazor.Components.Core.Enums
-@using Maviray.Blazor.Components.Core.EventArgs
-@using Maviray.Blazor.Components.Core.Extensions
-@using Maviray.Blazor.Components.Material.Components.DataDisplay.Icons
 @using Maviray.Blazor.Components.Material.Components.Feedback
 @using Maviray.Blazor.Components.Material.Components.Inputs
 @using Maviray.Blazor.Components.Material.Components.Spinner
-@using Maviray.Blazor.Components.Material.Constants
-@using Maviray.Blazor.Components.Pro.Core.Enums.Grid
-@using Maviray.Blazor.Components.Pro.Core.Interfaces
-@using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid
-@using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter
-@using Microsoft.AspNetCore.Components.Web
-@using Microsoft.JSInterop
-@using System.Globalization
-@using Maviray.Blazor.Components.Material.Extensions
-@using Maviray.Blazor.Components.Pro.Core.Models.Grid.Menu
-@inherits Maviray.Blazor.Components.Core.Components.MaviComponentBase
-@typeparam TDataItem where TDataItem : class
-@typeparam TModel where TModel : class, IGridCollectionModel<TDataItem, TKey>
+@inherits MaviComponentBase
 @typeparam TKey where TKey : IEquatable<TKey>
 
-    <div class="inline-block max-w-full rounded-xl border border-zinc-200 text-sm min-h-40 relative" style="overflow:auto">
-    <MaviBackdrop @ref="_maviBackdrop"
-                  Opacity="BackdropOpacity.Lighten"
-                  ZIndex="ZIndex.Fifty"
-                  CloseOnBackdropClick="false"
-                  InitiallyActive="_gridState.BackdropInitialState"
-                  CenterContent="true">
-        <MaviSpinnerStarRotate ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Regular" />
-    </MaviBackdrop>
-    <MaviDialog @ref="_setVisibleColumnsDialog" DialogButtonClick="OnDialogButtonClick" MaviDialogBaseParameters="_maviDialogBaseParameters">
-        <div class="space-4">
-            @{
-                var allColumns = _collection?.Columns.OrderBy(c => c.Sequence).ToList();
-            }
-            @if (allColumns is { Count: > 0 })
+@{
+    var view = Layout;
+}
+
+<div data-grid id="@Id" class="inline-block max-w-full rounded-xl border border-zinc-200 text-sm min-h-40 relative @Class" style="overflow:auto;@Style" aria-busy="@(_busy ? "true" : "false")">
+    @if (_busy)
+    {
+        <div class="absolute inset-0 z-40 flex items-center justify-center bg-white/60">
+            <MaviSpinnerStarRotate ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Regular" />
+        </div>
+    }
+
+    @if (_columnChoices is { } choices)
+    {
+        @* Mounted only while open, so a closed dialog costs nothing on each render. The content iterates its own copy:
+           the dialog can render once more while it closes. *@
+        <MaviDialog @ref="_columnsDialog" DialogButtonClick="OnColumnsDialogButtonAsync" MaviDialogBaseParameters="ColumnsDialogParameters">
+            <div class="flex flex-col gap-4">
+                @foreach (var choice in choices)
+                {
+                    <MaviCheckbox @bind-Value="choice.Visible" ElementSize="ElementSize.Regular" Label="@choice.Title" />
+                }
+            </div>
+        </MaviDialog>
+    }
+
+    @if (_prerenderSkipped)
+    {
+        <div data-grid-state="prerender" role="status" aria-live="polite" class="w-full min-h-40 p-4" style="min-width:20rem">
+            @if (PrerenderContent is not null)
             {
-                <div class="flex flex-col gap-4">
-                    @foreach (var col in allColumns)
+                @PrerenderContent
+            }
+            else
+            {
+                <MaviSkeleton Lines="5" FullWidth="true" />
+            }
+        </div>
+    }
+    else if (_fetchError is not null)
+    {
+        <div data-grid-state="fetch-error" role="alert" class="@MaviGridLayout.StateCss" style="min-width:20rem">
+            @if (FetchErrorContent is not null)
+            {
+                @FetchErrorContent
+            }
+            else if (!_busy)
+            {
+                <span class="@MaviGridLayout.StateTextCss">@Parameters.FetchErrorTitle</span>
+                <MaviButtonIcon Icon="lni lni-refresh-circle-1-clockwise" ElementVariant="ElementVariant.Filled" ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Large" OnClick="RefreshAsync" Title="Retry" />
+            }
+        </div>
+    }
+    else if (_page is not null)
+    {
+        <div class="grid divide-y divide-zinc-200" style="@view.GridStyle">
+            @foreach (var column in view.Columns)
+            {
+                <div data-column-header class="@view.HeaderCellCss">
+                    @if (column.Sortable)
                     {
-                        <MaviCheckbox @bind-Value="col.Visible"
-                                      ElementSize="ElementSize.Regular"
-                                      Label="@col.Title" />
+                        var direction = _page.SortColumnKey == column.Key ? (_page.SortOrder == SortOrder.Ascending ? "ascending" : "descending") : null;
+                        <button type="button" data-sort-key="@column.Key" data-sort-direction="@direction" aria-label="@($"Sort by {column.Title}")"
+                                class="@MaviGridLayout.HeaderButtonCss @MaviGridLayout.HeaderTextCss @MaviGridLayout.HeaderButtonHoverCss" @onclick="() => SortAsync(column)">
+                            <span>@column.Title</span>
+                            @if (direction is not null)
+                            {
+                                <i class="lni @(direction == "ascending" ? "lni-chevron-up" : "lni-chevron-down")" aria-hidden="true"></i>
+                            }
+                        </button>
+                    }
+                    else
+                    {
+                        <span class="@MaviGridLayout.HeaderTextCss select-none opacity-70">@column.Title</span>
                     }
                 </div>
             }
-        </div>
-    </MaviDialog>
-    @if (_collection != null)
-    {
-        <div class="grid divide-y divide-zinc-200" style="grid-template-columns: repeat(@VisibleColumnsCount, minmax(min-content, 200px))">
-            @* Header row *@
-            @foreach (var column in GetVisibleColumns())
+
+            @if (view.ShowSelect)
             {
-                <div class="@GetColumnHeaderContainerCss(column)">
-                    <div class="@GetColumnHeaderCss(column)">
-                        <div class="@Tailwind.Theme.Typography.LABEL_LARGE select-none transition-colors flex items-center gap-2 @(column.Sortable ? $"cursor-pointer {Tailwind.Theme.Colors.Text.Hover.THEME_DEFAULT_TEN_TEXT_HOVER}" : "cursor-default opacity-70")"
-                            @onclick="() => SortByColumn(column)">
-                            <span>@column.Title</span>
-                            @if (_collection?.SortColumnKey == column.Key)
-                            {
-                                if (_collection?.SortOrder == SortOrder.Ascending)
-                                {
-                                    <i class="lni lni-chevron-down"></i>
-                                }
-                                else
-                                {
-                                    <i class="lni lni-chevron-up"></i>
-                                }
-                            }
-                        </div>
-                    </div>
+                <div data-select-header class="@view.HeaderCellCss justify-center">
+                    <span class="@MaviGridLayout.HeaderTextCss select-none">Select</span>
                 </div>
             }
 
-            @* Select column header *@
-            @if (Parameters?.DisplaySelectColumn == true)
-            {
-                <div class="@GetCellSpacing() truncate flex items-center justify-center">
-                    <span class="@Tailwind.Theme.Typography.LABEL_LARGE @Tailwind.Theme.Colors.Text.THEME_DEFAULT_NINE_TEXT select-none">Select</span>
-                </div>
-            }
-
-            <div class="@GetContextMenuCellCss()">
-                @if (_mainContextMenu is not null && _mainContextMenu.Any())
+            <div class="@view.MenuCellCss">
+                @if (_mainMenu.Count > 0)
                 {
-                    <div id="@_gridState.ContextMenuId" data-context-menu-id="@_gridState.ContextMenuId" class="relative flex justify-end">
-                        <!-- Btn Toggle Context Menu Dropdown -->
-                        <MaviButtonIcon Icon="lni lni-menu-meatballs-1"
-                                        ElementVariant="ElementVariant.Text"
-                                        ThemeColorScheme="ThemeColorScheme.Default"
-                                        ElementSize="ElementSize.Small"
-                                        OnClick="ToggleMainContextMenuDropDown"
-                                        Title="@Parameters?.ContentMenuTitle" />
-
-                        <!-- Context Menu Dropdown -->
-                        <div class="@GetMainContextMenuCss()" style="@GetMainContextMenuStyle()">
-                            @foreach (var contextMenuButton in _mainContextMenu)
+                    <div data-main-menu-toggle id="@MainMenuId" data-context-menu-id="@MainMenuId" class="relative flex justify-end">
+                        <MaviButtonIcon Icon="lni lni-menu-meatballs-1" ElementVariant="ElementVariant.Text" ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Small" OnClick="ToggleMainMenu" Title="@Parameters.ContentMenuTitle" />
+                        <div class="@(_mainMenuOpen ? $"{MaviGridLayout.DropdownCss} absolute right-0 top-full" : "hidden")">
+                            @foreach (var item in _mainMenu)
                             {
-                                <button class="@Tailwind.Theme.Typography.BODY_MEDIUM @Tailwind.Theme.Colors.Text.THEME_DEFAULT_NINE_TEXT @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER block w-full px-4 py-2.5 text-left rounded-md transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                        disabled="@contextMenuButton?.Disabled"
-                                        @onclick="async () => { await ContextMenuClick(contextMenuButton); }">
-                                    @contextMenuButton?.Title
-                                </button>
+                                <button type="button" data-menu-item class="@MaviGridLayout.MenuItemCss" disabled="@(item.Disabled == true)" @onclick="() => OnMainMenuItemAsync(item)">@item.Title</button>
                             }
                         </div>
                     </div>
                 }
             </div>
-            @* Filter row *@
-            @if (Parameters?.EnableFilters == true)
+
+            @if (view.ShowFilters)
             {
-                @foreach (var column in GetVisibleColumns())
+                @foreach (var column in view.Columns)
                 {
-                    <div class="px-4 py-2 bg-zinc-50">
+                    <div class="@MaviGridLayout.FilterCellCss">
                         @if (column.Filterable)
                         {
-                            <input type="text"
-                                   id="@($"filter-{column.Key}-{Id}")"
-                                   class="@GetSearchInputCss()"
-                                   placeholder="@Parameters?.FilterPlaceholderText"
-                                   @oninput="(e) => UpdateColumnFilter(column.Key, e)"/>
+                            <input type="text" data-filter-key="@column.Key" id="@($"{Id}-filter-{column.Key}")" class="@MaviGridLayout.FilterInputCss"
+                                   placeholder="@Parameters.FilterPlaceholderText" aria-label="@($"Filter {column.Title}")"
+                                   value="@FilterText(column.Key)" @oninput="e => OnFilterInput(column.Key, e)" />
                         }
                     </div>
                 }
-                @if (Parameters?.DisplaySelectColumn == true)
+                @if (view.ShowSelect)
                 {
-                    <div class="px-4 py-2 bg-zinc-50"></div>
+                    <div class="@MaviGridLayout.FilterCellCss"></div>
                 }
-                <div class="px-4 py-2 bg-zinc-50"></div>
+                <div class="@MaviGridLayout.FilterCellCss"></div>
             }
-            @* Data rows *@
-            @if (_collection != null && _collection.Rows.Any())
+
+            @if (_page.AccessDenied)
             {
-                foreach (var (row, rowIndex) in _collection.Rows.Select((r, i) => (r, i)))
-                {
-                    <div @key="row.Guid" style="display:contents" class="group">
-                        @foreach (var col in GetVisibleColumns())
-                        {
-                            var cell = row.Cells.FirstOrDefault(c => c.ColumnKey == col.Key);
-                            <div class="@GetCellBoxClassWithAlignment(col, rowIndex)"
-                                 title="@cell?.Value"
-                                 @onclick="async () => { await CellClick(cell); }">
-                                <div class="@GetCellWrapperCss(col, cell)">
-                                    @TrimCellValue(cell)
-                                </div>
-                            </div>
-                        }
-
-                        @if (Parameters?.DisplaySelectColumn == true)
-                        {
-                            <div class="@GetCellBoxClass(rowIndex, "justify-center")" @onclick:stopPropagation="true">
-                                <MaviCheckbox @bind-Value="row.Selected"
-                                              ThemeColorScheme="ThemeColorScheme.Default" />
-                            </div>
-                        }
-
-                        <div class="@GetCellBoxClass(rowIndex, "text-right")">
-                            @if (row.ContextActions.Any())
-                            {
-                                <div class="w-full flex items-center justify-end">
-                                    @if (_gridState.TableRowContextMenuDisplayStyle == TableRowContextMenuDisplayStyle.Icons)
-                                    {
-                                        <div id="@row.ContextMenuId" data-context-menu-id="@row.ContextMenuId" class="flex items-center gap-1">
-                                            @foreach (var rowContextMenuButton in row.ContextActions)
-                                            {
-                                                <MaviButtonIcon Icon="@rowContextMenuButton.Icon"
-                                                                ElementVariant="rowContextMenuButton.ElementVariant"
-                                                                ThemeColorScheme="rowContextMenuButton.ThemeColorScheme"
-                                                                ElementSize="rowContextMenuButton.ElementSize"
-                                                                Disabled="@rowContextMenuButton.Disabled"
-                                                                OnClick="async (e) => { await RowContextMenuItemClick(e, row, rowContextMenuButton); }"
-                                                                Title="@rowContextMenuButton.Title" />
-                                            }
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <div id="@row.ContextMenuId" data-context-menu-id="@row.ContextMenuId" class="relative">
-                                            <!-- Btn Toggle Context Menu Dropdown -->
-                                            <MaviButtonIcon Icon="lni lni-menu-meatballs-1"
-                                                            ElementVariant="ElementVariant.Text"
-                                                            ThemeColorScheme="ThemeColorScheme.Default"
-                                                            ElementSize="ElementSize.Small"
-                                                            OnClick="(e) => { ToggleRowContextMenuDropDown(row, e); }"
-                                                            Title="@Parameters?.ContentMenuTitle" />
-
-                                            <!-- Row Context Menu Dropdown -->
-                                            <div class="@GetRowContextMenuCss(row, rowIndex)" style="@GetRowContextMenuStyle(row)">
-                                                @foreach (var rowContextMenuButton in row.ContextActions)
-                                                {
-                                                    <button class="@Tailwind.Theme.Typography.BODY_MEDIUM @Tailwind.Theme.Colors.Text.THEME_DEFAULT_NINE_TEXT @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER block w-full px-4 py-2.5 text-left rounded-md transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                                            disabled="@rowContextMenuButton?.Disabled"
-                                                            @onclick="async (e) => { await RowContextMenuItemClick(e, row, rowContextMenuButton); }">
-                                                        @rowContextMenuButton?.Title
-                                                    </button>
-                                                }
-                                            </div>
-                                        </div>
-
-                                    }
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
+                <div data-grid-state="access-denied" role="alert" class="@MaviGridLayout.StateCss" style="min-width:20rem">
+                    @if (AccessDeniedContent is not null)
+                    {
+                        @AccessDeniedContent
+                    }
+                    else
+                    {
+                        <span class="@MaviGridLayout.StateTextCss">@(_page.AccessDeniedMessage ?? Parameters.AccessDeniedTitle)</span>
+                    }
+                </div>
             }
-            else
+            else if (_page.Rows.Count == 0)
             {
-                <div class="w-full min-h-40 flex items-center justify-center col-span-full" style="min-width:20rem">
+                <div data-grid-state="no-data" role="status" class="@MaviGridLayout.StateCss" style="min-width:20rem">
                     @if (!_busy)
                     {
-                        <div class="flex items-center gap-4">
-                            <div class="@Tailwind.Theme.Typography.BODY_LARGE @Tailwind.Theme.Colors.Text.THEME_DEFAULT_SEVEN_TEXT">@Parameters?.NoDataAvailableTitle</div>
-                            <MaviButtonIcon Icon="lni lni-refresh-circle-1-clockwise"
-                                            ElementVariant="ElementVariant.Filled"
-                                            ThemeColorScheme="ThemeColorScheme.Default"
-                                            ElementSize="ElementSize.Large"
-                                            OnClick="ClearFiltersAndReload"
-                                            Title="Reload"/>
-                        </div>
-                    }
-                </div>
-            }
-            
-            @if (_collection is { Rows.Count: > 0 })
-            {
-                @* ── Footer row – always spans every column ── *@
-                <div id="@($"pagination-{Id}")" class="col-span-full" @onclick:stopPropagation="true">
-                    <div class="@GetFooterRowCss()">
-                        <div class="flex items-center gap-2">
-                            <span class="@GetPaginationTextCss()">@Parameters?.RowsPerPageText</span>
-                            <select id="@($"select-row-number-{Id}")"
-                                    class="@GetCountPerPageSelectCss()"
-                                    @onchange="UpdatePageSize"
-                                    @onclick:stopPropagation="true"
-                                    title="@Parameters?.SelectNumberOfRowsToDisplayText">
-                                <option value="10">10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                                <option value="100">100</option>
-                            </select>
-
-                            <MaviButtonIcon Icon="lni lni-sliders-horizontal-square-2"
-                                            ElementVariant="ElementVariant.Text"
-                                            ThemeColorScheme="ThemeColorScheme.Dark"
-                                            ElementSize="ElementSize.Regular"
-                                            OnClick="KickOffSetVisibleColumnsModal"
-                                            Title="Set Visible Columns" />
-                        </div>
-
-                        <div class="flex items-center gap-3">
-                            <div>
-                                <input id="@($"goto-page-{Id}")"
-                                       class="@GetCountPerPageSelectCss()"
-                                       title="Go To Page"
-                                       type="number"
-                                       min="1"
-                                       max="@(_collection?.TotalPages ?? 1)"
-                                       @bind="_gridState.GoToPage"
-                                       @bind:after="OnGoToPage" />
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
-                                    <MaviIconOnline IconOnlineType="IconOnlineType.ChevronLeftOnline"
-                                                    IconColor="ElementColor.DimGrey"
-                                                    IconSize="GetIconSize()"
-                                                    OnClick="PrevPage" />
-                                </div>
-                                <span class="@GetPaginationTextCss()">
-                                    @_collection?.FirstRowIndex–@_collection?.LastRowIndex of @_collection?.TotalRows
-                                </span>
-                                <div class="rounded-full p-1 @Tailwind.Theme.Colors.Background.Hover.THEME_DEFAULT_TWO_BG_HOVER @Tailwind.Theme.Colors.Background.Active.THEME_DEFAULT_THREE_BG_ACTIVE">
-                                    <MaviIconOnline IconOnlineType="IconOnlineType.ChevronRightOnline"
-                                                    IconColor="ElementColor.DimGrey"
-                                                    IconSize="GetIconSize()"
-                                                    OnClick="NextPage" />
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            }
-           
-        </div>
-    }
-    else
-    {
-        @if (NoDataContent != null)
-        {
-            <div class="w-full min-h-40 flex items-center justify-center" style="min-width:20rem">
-                @if (!_busy)
-                {
-                    @NoDataContent
-                }
-            </div>
-        }
-        else
-        {
-            <div class="w-full min-h-40 flex items-center justify-center" style="min-width:20rem">
-                @if (!_busy)
-                {
-                    <div class="flex items-center gap-4">
-                        <div class="@Tailwind.Theme.Typography.BODY_LARGE @Tailwind.Theme.Colors.Text.THEME_DEFAULT_SEVEN_TEXT">@Parameters?.NoDataAvailableTitle</div>
-                        <MaviButtonIcon Icon="lni lni-refresh-circle-1-clockwise"
-                                        ElementVariant="ElementVariant.Filled"
-                                        ThemeColorScheme="ThemeColorScheme.Default"
-                                        ElementSize="ElementSize.Large"
-                                        OnClick="ClearFiltersAndReload"
-                                        Title="Reload"/>
-                    </div>
-                }
-            </div>
-        }
-    }
-</div>
-
-
-@code
-{
-    private bool _busy = false;
-
-    private int VisibleColumnsCount => GetVisibleColumns().Count + 1 + (Parameters?.DisplaySelectColumn == true ? 1 : 0);
-
-    private readonly MaviGridState _gridState = new();
-
-    private MaviGridCollection<TKey>? _collection;
-
-    private List<MaviGridColumn>? _visibleColumnsCache;
-
-    private MaviBackdrop? _maviBackdrop;
-
-    private IEnumerable<IMaviContextMenuItem>? _mainContextMenu;
-
-    private DotNetObjectReference<MaviGrid<TDataItem, TModel, TKey>>? _dotNetRef;
-
-    private readonly MaviGridDataQueryParameters _queryParameters = new();
-
-    private CancellationTokenSource? _filterDebounceCts;
-
-    private MaviDialog? _setVisibleColumnsDialog;
-    private readonly MaviDialogBaseParameters _maviDialogBaseParameters = new()
-    {
-        ConfirmButtonTitle = "Set",
-        Title = "Set Column Visibility",
-        Width = "w-96"
-    };
-
-    // Snapshot of each column's Visible flag captured when the dialog opens, so Cancel can revert
-    // the live edits the checkboxes make directly on the column objects.
-    private Dictionary<string, bool>? _columnVisibilitySnapshot;
-
-    [Inject]
-    protected IJSRuntime? JsRuntime { get; set; }
-
-    [Parameter]
-    public MaviGridParameters Parameters { get; set; } = new();
-
-    [Parameter]
-    public Func<MaviGridDataQueryParameters, Task<MaviGridCollection<TKey>?>>? FetchData { get; set; }
-
-    [Parameter]
-    public Func<Task<IEnumerable<IMaviContextMenuItem>>>? ConstructMainContextMenu { get; set; }
-
-    [Parameter]
-    public EventCallback<IMaviContextMenuItem> OnMainContextMenuButtonClick { get; set; }
-
-    [Parameter]
-    public EventCallback<IMaviRowContextMenuItem<TKey>> OnRowContextMenuClick { get; set; }
-
-    [Parameter]
-    public EventCallback<CellClickParameters<TKey>> OnCellClick { get; set; }
-
-    [Parameter]
-    public RenderFragment? NoDataContent { get; set; }
-
-    #region Lifecycle Actions
-
-    protected override void OnInitialized()
-    {
-        base.OnInitialized();
-
-        _gridState.ContextMenuId = $"context-menu-{Id}";
-    }
-
-    protected override void OnParametersSet()
-    {
-        base.OnParametersSet();
-
-        _gridState.TableRowContextMenuDisplayStyle = Parameters?.TableRowContextMenuDisplayStyle ?? TableRowContextMenuDisplayStyle.DropDown;
-        _queryParameters?.SortOrder = Parameters?.SortOrder ?? SortOrder.Descending;
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        await base.OnInitializedAsync();
-        await RefreshTable();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await SubscribeElements();
-        }
-
-        await base.OnAfterRenderAsync(firstRender);
-    }
-
-    #endregion
-
-    #region Main Actions
-    public async Task Refresh()
-    {
-        await RefreshTable();
-
-        _gridState.NeedsRender = true;
-        StateHasChanged();
-    }
-
-    private async Task ClearFiltersAndReload()
-    {
-        try
-        {
-            _queryParameters.ClearFilters();
-            await RefreshTable();
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, "An error occurred while refreshing the grid.");
-        }
-    }
-
-    public IEnumerable<MaviGridRow<TKey>> GetSelectedRows()
-    {
-        return _collection == null ? [] : _collection.GetSelectedRows();
-    }
-
-    private async Task RefreshTable()
-    {
-        try
-        {
-            _busy = true;
-            _maviBackdrop?.Display();
-
-            await BuildCollection();
-            await BuildContextMenu();
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, "An error occurred while refreshing the grid.");
-        }
-        finally
-        {
-            _maviBackdrop?.Hide();
-            _gridState.BackdropInitialState = false;
-            _busy = false;
-        }
-
-    }
-
-    protected async Task BuildCollection()
-    {
-        try
-        {
-            if (FetchData != null)
-            {     
-                _collection = await FetchData.Invoke(_queryParameters);
-                _gridState.NeedsRender = true;
-
-                // Keep the go-to-page input in sync with the page actually returned (the factory may
-                // clamp the requested page into range).
-                if (_collection != null)
-                {
-                    _gridState.GoToPage = _collection.CurrentPage;
-                }
-            }
-
-            _visibleColumnsCache = null;
-
-            if (EnableLifeCycleLogging)
-            {
-                Logger?.LogDebugLifeCycle(Id, GetType());
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, "Failed to fetch data for grid");
-        }
-    }
-
-    protected async Task BuildContextMenu()
-    {
-        if (ConstructMainContextMenu != null)
-        {
-            try
-            {
-                _mainContextMenu = await ConstructMainContextMenu.Invoke();
-
-                if (EnableLifeCycleLogging)
-                {
-                    Logger?.LogDebugLifeCycle(Id, GetType());
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger?.Error(ex, "Failed to construct main context menu.");
-            }
-        }
-    }
-
-    protected async Task RowContextMenuItemClick(MouseEventArgs args, MaviGridRow<TKey> row, IMaviRowContextMenuItem<TKey>? action)
-    {
-        try
-        {
-            row.ContextMenuVisible = false;
-
-            if (OnRowContextMenuClick.HasDelegate)
-            {
-                await OnRowContextMenuClick.InvokeAsync(action);
-            }
-
-            if (EnableLifeCycleLogging)
-            {
-                Logger?.LogDebugLifeCycle(Id, GetType());
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, "An error occurred while handling row context menu item click.");
-        }
-    }
-
-    protected void ToggleRowContextMenuDropDown(MaviGridRow<TKey> row, MouseClickEventArgs mouseEventArgs)
-    {
-        row.ContextMenuVisible = !row.ContextMenuVisible;
-        if (row.ContextMenuVisible)
-            _gridState.ActiveRowMenuDropdownPositionStyle = $"top:{mouseEventArgs.ClientY + 8}px;left:{mouseEventArgs.ClientX - 248}px;";
-    }
-
-    protected IReadOnlyList<MaviGridColumn> GetVisibleColumns()
-    {
-        if (_visibleColumnsCache != null) return _visibleColumnsCache == null ? Array.Empty<MaviGridColumn>() : _visibleColumnsCache;
-
-        if (_collection != null)
-        {
-            _visibleColumnsCache = _collection?.Columns
-                .Where(c => c.Visible)
-                .OrderBy(c => c.Sequence)
-                .ToList();
-        }
-
-        return _visibleColumnsCache == null ? Array.Empty<MaviGridColumn>() : _visibleColumnsCache;
-    }
-
-    protected async Task PrevPage()
-    {
-        try
-        {
-            if (_queryParameters.PageNumber > 1)
-            {
-                _queryParameters.PageNumber--;
-                await RefreshTable();
-
-                if (EnableLifeCycleLogging)
-                {
-                    Logger?.LogDebugLifeCycle(Id, GetType());
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, "An error occurred while navigating to the previous page.");
-        }
-    }
-
-    protected async Task NextPage()
-    {
-        try
-        {
-            if (_collection is not null)
-            {
-                var totalPages = _collection.TotalPages;
-
-                if (_queryParameters.PageNumber < totalPages)
-                {
-                    _queryParameters.PageNumber++;
-                    await RefreshTable();
-                }
-
-                if (EnableLifeCycleLogging)
-                {
-                    Logger?.LogDebugLifeCycle(Id, GetType());
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, "An error occurred while navigating to the next page.");
-        }
-    }
-
-    protected async Task OnGoToPage()
-    {
-        try
-        {
-            if (_collection is null)
-            {
-                return;
-            }
-
-            // Clamp the entered value into the valid range [1, TotalPages] and reflect any correction
-            // back into the bound input.
-            var totalPages = Math.Max(_collection.TotalPages, 1);
-            var requestedPage = Math.Clamp(_gridState.GoToPage, 1, totalPages);
-            _gridState.GoToPage = requestedPage;
-
-            if (requestedPage == _queryParameters.PageNumber)
-            {
-                // Nothing to fetch, but re-render so a clamped value shows in the input.
-                _gridState.NeedsRender = true;
-                return;
-            }
-
-            _queryParameters.PageNumber = requestedPage;
-            await RefreshTable();
-
-            if (EnableLifeCycleLogging)
-            {
-                Logger?.LogDebugLifeCycle(Id, GetType());
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, "An error occurred while navigating to the requested page.");
-        }
-    }
-
-    protected async Task SortByColumn(MaviGridColumn column)
-    {
-        if (!column.Sortable)
-        {
-            return;
-        }
-
-        try
-        {
-            if (_queryParameters.OrderByColumnKey == column.Key)
-            {
-                _queryParameters.SortOrder = _queryParameters.SortOrder == SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;
-            }
-            else
-            {
-                _queryParameters.OrderByColumnKey = column.Key;
-                _queryParameters.SortOrder = SortOrder.Ascending;
-            }
-
-            await RefreshTable();
-
-            if (EnableLifeCycleLogging)
-            {
-                Logger?.LogDebugLifeCycle(Id, GetType());
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, $"An error occurred while sorting by column with key '{column.Key}'.");
-        }
-    }
-
-    protected async Task UpdatePageSize(ChangeEventArgs e)
-    {
-        try
-        {
-            if (!int.TryParse(e?.Value?.ToString(), out var newSize))
-            {
-                return;
-            }
-
-            _queryParameters.NumberOfItemsPerPage = newSize;
-
-            await RefreshTable();
-
-            if (EnableLifeCycleLogging)
-            {
-                Logger?.LogDebugLifeCycle(Id, GetType());
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, "An error occurred while updating the page size.");
-        }
-    }
-
-    protected void ToggleMainContextMenuDropDown(MouseClickEventArgs mouseEventArgs)
-    {
-        _gridState.ContextMenuVisible = !_gridState.ContextMenuVisible;
-        _gridState.NeedsRender = true;
-    }
-
-    protected async Task ContextMenuClick(IMaviContextMenuItem? action)
-    {
-        try
-        {
-            _gridState.ContextMenuVisible = false;
-
-            if (OnMainContextMenuButtonClick.HasDelegate)
-            {
-                await OnMainContextMenuButtonClick.InvokeAsync(action);
-            }
-
-            if (EnableLifeCycleLogging)
-            {
-                Logger?.LogDebugLifeCycle(Id, GetType());
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, "An error occurred while handling the main context menu button click.");
-        }
-    }
-
-    protected async Task CellClick(MaviGridCell<TKey>? cell)
-    {
-        try
-        {
-            if (cell != null)
-            {
-                if (OnCellClick.HasDelegate)
-                {
-                    var parameters = new CellClickParameters<TKey>
-                    {
-                        RowKey = cell.RowKey,
-                        ColumnKey = cell.ColumnKey,
-                        CellBehavior = cell.CellBehavior
-                    };
-
-                    await OnCellClick.InvokeAsync(parameters);
-                }
-            }
-
-            if (EnableLifeCycleLogging)
-            {
-                Logger?.LogDebugLifeCycle(Id, GetType());
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, "An error occurred while handling the row click.");
-        }
-    }
-
-    protected void UpdateColumnFilter(string columnKey, ChangeEventArgs args)
-    {
-        // Capture the latest value and restart the debounce timer. The filter is only
-        // applied once the user pauses typing for FilterDebounceMilliseconds.
-        var filterText = args.Value?.ToString() ?? string.Empty;
-
-        _filterDebounceCts?.Cancel();
-        _filterDebounceCts?.Dispose();
-        _filterDebounceCts = new();
-
-        _ = ApplyColumnFilterDebouncedAsync(columnKey, filterText, _filterDebounceCts.Token);
-    }
-
-    private async Task ApplyColumnFilterDebouncedAsync(string columnKey, string filterText, CancellationToken token)
-    {
-        try
-        {
-            await Task.Delay(Parameters?.FilterDebounceMilliseconds ?? 400, token);
-
-            if (string.IsNullOrWhiteSpace(filterText))
-            {
-                _queryParameters.RemoveFilter(columnKey);
-            }
-            else
-            {
-                var column = _collection?.Columns.FirstOrDefault(c => c.Key == columnKey);
-
-                if (column != null && TryResolveColumnFilter(column, filterText, out var criteria, out var value))
-                {
-                    _queryParameters.AddFilter(columnKey, value, criteria);
-                }
-                else
-                {
-                    // The typed text does not resolve to a concrete filter for this column type
-                    // (a non-numeric number, or a label that matches no bool/enum option). Drop the
-                    // column filter rather than building an expression the query builder cannot run.
-                    _queryParameters.RemoveFilter(columnKey);
-                }
-            }
-
-            // Continuation runs off the renderer's sync context, so marshal back before
-            // touching component state and triggering a re-render.
-            await InvokeAsync(async () =>
-            {
-                await RefreshTable();
-
-                _gridState.NeedsRender = true;
-                StateHasChanged();
-            });
-
-            if (EnableLifeCycleLogging)
-            {
-                Logger?.LogDebugLifeCycle(Id, GetType());
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // A newer keystroke superseded this one; nothing to do.
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, $"An error occurred while updating the filter for column with key '{columnKey}'.");
-        }
-    }
-
-    /// <summary>
-    /// Translates a typed-in filter fragment into the filter criteria and value appropriate for the
-    /// column's data type. Strings use a substring match; numeric and date columns use equality; bool
-    /// and enum columns match the typed fragment against their user-facing labels and translate it to
-    /// the underlying value. Returns false when the text cannot be resolved to a concrete filter.
-    /// </summary>
-    private static bool TryResolveColumnFilter(MaviGridColumn column, string filterText, out MaviGridFilterCriteria criteria, out string value)
-    {
-        var text = filterText.Trim();
-
-        // Equality is the default; only string columns do a partial (Contains) match.
-        criteria = MaviGridFilterCriteria.Equals;
-        value = text;
-
-        switch (column.GridPropertyType)
-        {
-            case MaviGridPropertyType.String:
-            case MaviGridPropertyType.NavString:
-                criteria = MaviGridFilterCriteria.Contains;
-                return true;
-
-            case MaviGridPropertyType.Char:
-            case MaviGridPropertyType.NavChar:
-                return text.Length == 1;
-
-            case MaviGridPropertyType.Int:
-            case MaviGridPropertyType.NavInt:
-                return long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-                    || ulong.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-
-            case MaviGridPropertyType.Decimal:
-            case MaviGridPropertyType.NavDecimal:
-                return decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out _);
-
-            case MaviGridPropertyType.DateTime:
-            case MaviGridPropertyType.NavDateTime:
-                return DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
-
-            case MaviGridPropertyType.TimeSpan:
-            case MaviGridPropertyType.NavTimeSpan:
-                return TimeSpan.TryParse(text, CultureInfo.InvariantCulture, out _);
-
-            case MaviGridPropertyType.Guid:
-            case MaviGridPropertyType.NavGuid:
-                return Guid.TryParse(text, out _);
-
-            case MaviGridPropertyType.Bool:
-            case MaviGridPropertyType.NavBool:
-                return TryResolveBoolFilter(column, text, out value);
-
-            case MaviGridPropertyType.Enum:
-            case MaviGridPropertyType.NavEnum:
-                return TryResolveEnumFilter(column, text, out value);
-
-            default:
-                // Undefined: let the query builder coerce the text on equality.
-                return true;
-        }
-    }
-
-    private static bool TryResolveBoolFilter(MaviGridColumn column, string text, out string value)
-    {
-        // Match the typed fragment against the user-facing positive / negative labels and translate
-        // to the bool the query builder understands. Positive is checked first to break ambiguity.
-        var positive = column.BoolPositiveDisplay ?? bool.TrueString;
-        var negative = column.BoolNegativeDisplay ?? bool.FalseString;
-
-        if (LabelContains(positive, text))
-        {
-            value = bool.TrueString;
-            return true;
-        }
-
-        if (LabelContains(negative, text))
-        {
-            value = bool.FalseString;
-            return true;
-        }
-
-        value = text;
-        return false;
-    }
-
-    private static bool TryResolveEnumFilter(MaviGridColumn column, string text, out string value)
-    {
-        // PossibleFilterValues maps each enum member name (key) to its display text (value, which
-        // falls back to the member name when no [Display] attribute is present). Match the typed
-        // fragment against the display text and translate to the member name, which the query builder
-        // parses back into the concrete enum member.
-        if (column.PossibleFilterValues != null)
-        {
-            foreach (var option in column.PossibleFilterValues)
-            {
-                if (LabelContains(option.Value, text))
-                {
-                    value = option.Key;
-                    return true;
-                }
-            }
-        }
-
-        value = text;
-        return false;
-    }
-
-    private static bool LabelContains(string? label, string text)
-        => !string.IsNullOrEmpty(label) && label.Contains(text, StringComparison.OrdinalIgnoreCase);
-
-    protected string TrimCellValue(MaviGridCell<TKey>? cell)
-    {
-        if (cell?.Value is null) return string.Empty;
-
-        return Parameters.MaxCellCharsToDisplay > 0 ? cell.Value.TrimToLengthWithDots(Parameters.MaxCellCharsToDisplay) : cell.Value;
-    }
-
-    protected override bool ShouldRender()
-    {
-        if (!_gridState.NeedsRender) return false;
-
-        _gridState.NeedsRender = false;
-        return true;
-    }
-
-    #endregion
-
-    #region CSS
-
-    private string GetCellBoxClassWithAlignment(MaviGridColumn column, int rowIndex)
-    {
-        var cellText = column.MaviGridColumnBehavior == MaviGridColumnCellBehavior.Navigational ? "cursor-pointer font-semibold" : string.Empty;
-
-        return $"{GetCellBoxClass(rowIndex, GetCellContentAlignment(column))} {cellText}";
-    }
-
-    private string GetCellBoxClass(int rowIndex, string textAlignment)
-    {
-        var backgroundColor = Parameters?.Striped == true ? rowIndex % 2 == 0 ? "bg-white" : "bg-zinc-50" : "bg-white";
-
-        return $"{backgroundColor} {textAlignment} {GetCellSpacing()} text-zinc-800 truncate flex items-center group-hover:bg-zinc-100";
-    }
-
-    private static string GetCellContentAlignment(MaviGridColumn column)
-    {
-        switch (column.HorizontalTextAlignment)
-        {
-            case HorizontalPosition.Left:
-                return "justify-start";
-            case HorizontalPosition.Center:
-                return "justify-center";
-            case HorizontalPosition.Right:
-                return "justify-end";
-            default:
-                return "justify-start";
-        }
-    }
-
-    private static string GetColumnHeaderCss(MaviGridColumn column)
-    {
-
-        return $"{Tailwind.Theme.Colors.Text.THEME_DEFAULT_NINE_TEXT} flex items-center {GetColumnHeaderHorizontalAlignmentCss(column)}";
-    }
-
-    private static string GetColumnHeaderHorizontalAlignmentCss(MaviGridColumn column)
-    {
-        switch (column.HorizontalTextAlignment)
-        {
-            case HorizontalPosition.Left:
-                return "justify-start";
-            case HorizontalPosition.Center:
-                return "justify-center";
-            case HorizontalPosition.Right:
-                return "justify-end";
-            default:
-                return "justify-start";
-        }
-    }
-
-    private string GetMainContextMenuCss()
-    {
-        return _gridState.ContextMenuVisible? GetContextMenuDropDownCss() : "hidden";
-    }
-
-    // Replace absolute right-0 → fixed, raise z-index
-    private string GetContextMenuDropDownCss()
-    {
-        if (string.IsNullOrWhiteSpace(_gridState.ContextMenuDropDownCss))
-        {
-            _gridState.ContextMenuDropDownCss = Tailwind.Theme.Colors.Background.THEME_DEFAULT_ONE_BG + " " +
-                                      Tailwind.Theme.Colors.Border.THEME_DEFAULT_THREE_BORDER +
-                                      " fixed w-64 border rounded-lg shadow-lg z-[9999] p-2";
-        }
-
-        return _gridState.ContextMenuDropDownCss;
-
-    }
-
-    private string GetMainContextMenuStyle() => _gridState.MmainMenuDropdownPositionStyle;
-    private string GetRowContextMenuStyle(MaviGridRow<TKey>? row) =>
-        row is { ContextMenuVisible: true } ? _gridState.ActiveRowMenuDropdownPositionStyle : string.Empty;
-
-    // Simplify — remove the bottom-full hack entirely
-    private string GetRowContextMenuCss(MaviGridRow<TKey>? row, int rowIndex)
-        => row is { ContextMenuVisible: true } ? GetContextMenuDropDownCss() : "hidden";
-
-    private string GetColumnHeaderContainerCss(MaviGridColumn column)
-    {
-        return $"{GetCellSpacing()} truncate flex items-center {GetCellContentAlignment(column)}";
-    }
-
-    private string GetCellSpacing()
-    {
-        if (string.IsNullOrWhiteSpace(_gridState.CellSpacing))
-        {
-            _gridState.CellSpacing = Parameters?.Condensed == true ? "px-2 py-1.5" : "px-4 py-3";
-        }
-
-        return _gridState.CellSpacing;
-    }
-
-    private IconSize GetIconSize()
-    {
-        _gridState.IconSize ??= Parameters?.Condensed == true ? IconSize.ExtraSmall : IconSize.Small;
-
-        return _gridState.IconSize.Value;
-    }
-
-    private string GetContextTextSize()
-    {
-        if (string.IsNullOrWhiteSpace(_gridState.ContextTextSize))
-        {
-            _gridState.ContextTextSize = Parameters?.Condensed == true ? Tailwind.Theme.Typography.BODY_SMALL : Tailwind.Theme.Typography.BODY_MEDIUM;
-        }
-
-        return _gridState.ContextTextSize;
-    }
-
-    private string GetPaginationTextCss()
-    {
-        return GetContextTextSize() + " " + Tailwind.Theme.Colors.Text.THEME_DEFAULT_EIGHT_TEXT;
-    }
-
-    private string GetCountPerPageSelectCss()
-    {
-        if (string.IsNullOrWhiteSpace(_gridState.CountPerPageDropdownCss))
-        {
-            _gridState.CountPerPageDropdownCss = GetContextTextSize() + " " +
-                                       Tailwind.Theme.Colors.Text.THEME_DEFAULT_NINE_TEXT + " " +
-                                       Tailwind.Theme.Colors.Background.THEME_DEFAULT_ONE_BG + " " +
-                                       Tailwind.Theme.Colors.Border.THEME_DEFAULT_THREE_BORDER + " " +
-                                       Tailwind.Theme.Colors.Ring.Focus.THEME_PRIMARY_SIX_RING_FOCUS + " " +
-                                       "border rounded-md px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 " +
-                                       "transition-shadow w-[70px]";
-        }
-
-
-        return _gridState.CountPerPageDropdownCss;
-    }
-
-    private string GetContextMenuCellCss()
-    {
-        if (string.IsNullOrWhiteSpace(_gridState.ContextMenuCellCss))
-        {
-            _gridState.ContextMenuCellCss = $"{GetCellSpacing()} truncate text-right";
-        }
-        return _gridState.ContextMenuCellCss;
-    }
-
-    private string GetFooterRowCss()
-    {
-        if (string.IsNullOrWhiteSpace(_gridState.FooterRowCss))
-        {
-            _gridState.FooterRowCss = $"bg-white {GetCellSpacing()} flex items-center justify-between w-full min-w-80";
-        }
-
-        return _gridState.FooterRowCss;
-    }
-
-    private string GetSearchInputCss()
-    {
-        if (string.IsNullOrWhiteSpace(_gridState.SearchInputCss))
-        {
-            _gridState.SearchInputCss = Tailwind.Theme.Typography.BODY_SMALL + " " +
-                                        Tailwind.Theme.Colors.Text.THEME_DEFAULT_NINE_TEXT + " " +
-                                        Tailwind.Theme.Colors.Border.THEME_DEFAULT_THREE_BORDER + " " +
-                                        Tailwind.Theme.Colors.Ring.Focus.THEME_PRIMARY_SIX_RING_FOCUS +
-                                        " bg-white border px-2 py-1 w-full focus:outline-none focus:ring-2 placeholder:text-(--theme-default-five)";
-        }
-
-        return _gridState.SearchInputCss;
-    }
-
-    private string GetCellWrapperCss(MaviGridColumn column, MaviGridCell<TKey>? cell)
-    {
-        if (cell == null) return string.Empty;
-
-        return column.GraphicDisplay ? cell.ThemeColorScheme.GetBadgeCss() : string.Empty;
-    }
-
-    #endregion
-
-    #region handle outside click
-
-    protected async Task SubscribeElements()
-    {
-        try
-        {
-            _dotNetRef = DotNetObjectReference.Create(this);
-
-            if (JsRuntime != null)
-            {
-                await JsRuntime.InvokeVoidAsync(
-                    JsInteropConstants.REGISTER_OUT_OF_FOCUS_CALLBACK_LISTENER,
-                    Id,
-                    _dotNetRef,
-                    "HandleOutsideClick");
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, ex.Message);
-        }
-    }
-
-    [JSInvokable]
-    public void HandleOutsideClick(string clickedMenuId)
-    {
-        try
-        {
-            // Close main menu if the click was NOT inside it
-            if (clickedMenuId != _gridState.ContextMenuId)
-            {
-                _gridState.ContextMenuVisible = false;
-            }
-
-            // Close all row menus that were NOT clicked
-            if (_collection != null)
-            {
-                foreach (var row in _collection.Rows.Where(row => clickedMenuId != row.ContextMenuId))
-                {
-                    row.ContextMenuVisible = false;
-                }
-            }
-
-            _gridState.NeedsRender = true;
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, ex.Message);
-        }
-    }
-
-    private bool _disposed;
-
-    public async ValueTask DisposeAsync()
-    {
-        try
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            if (HasRendered && JsRuntime != null)
-            {
-                await JsRuntime.InvokeVoidAsync(
-                    JsInteropConstants.UN_REGISTER_OUT_OF_FOCUS_CALLBACK_LISTENER,
-                    Id);
-            }
-
-            _dotNetRef?.Dispose();
-
-            if (_filterDebounceCts is not null)
-            {
-                await _filterDebounceCts.CancelAsync();
-                _filterDebounceCts.Dispose();
-            }
-
-            _disposed = true;
-            GC.SuppressFinalize(this);
-
-            if (EnableLifeCycleLogging)
-            {
-                Logger?.LogDebugLifeCycle(Id, GetType());
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, ex.Message);
-        }
-    }
-
-    #endregion
-
-    private async Task OnDialogButtonClick(DialogButtonClickEventArgs buttonClickArgs)
-    {
-        try
-        {
-            if (_maviBackdrop != null)
-            {
-                await _maviBackdrop.Display();
-            }
-
-            if (buttonClickArgs.ButtonClicked == DialogButtonClick.Confirm)
-            {
-                // Column visibility was toggled on the column objects directly. Drop the cached
-                // visible-column list so it is rebuilt, and flag a render (ShouldRender gates on this).
-                _visibleColumnsCache = null;
-                _gridState.NeedsRender = true;
-                StateHasChanged();
-            }
-            else
-            {
-                // Cancel / dismiss: revert the live edits the checkboxes made to the column objects.
-                if (_columnVisibilitySnapshot != null && _collection != null)
-                {
-                    foreach (var column in _collection.Columns)
-                    {
-                        if (_columnVisibilitySnapshot.TryGetValue(column.Key, out var wasVisible))
+                        @if (NoDataContent is not null)
                         {
-                            column.Visible = wasVisible;
+                            @NoDataContent
+                        }
+                        else
+                        {
+                            <span class="@MaviGridLayout.StateTextCss">@Parameters.NoDataAvailableTitle</span>
+                            <MaviButtonIcon Icon="lni lni-refresh-circle-1-clockwise" ElementVariant="ElementVariant.Filled" ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Large" OnClick="ClearFiltersAndReloadAsync" Title="Clear filters and reload" />
                         }
                     }
+                </div>
+            }
+            else
+            {
+                @for (var index = 0; index < _page.Rows.Count; index++)
+                {
+                    var row = _page.Rows[index];
+                    <MaviGridRowView @key="row.Key" TKey="TKey" Grid="this" Row="row" RowIndex="index" LayoutVersion="LayoutVersion"
+                                     Selected="_selectedKeys.Contains(row.Key)" MenuOpen="_openRowMenu == index" MenuStyle="@(_openRowMenu == index ? _rowMenuStyle : null)" />
                 }
-            }
 
-            _columnVisibilitySnapshot = null;
-
-            if (_setVisibleColumnsDialog != null)
-            {
-                await _setVisibleColumnsDialog.Hide();
+                <div data-pager class="col-span-full">
+                    <div class="@view.FooterCss">
+                        <div class="flex items-center gap-2">
+                            <span class="@view.PagerTextCss">@Parameters.RowsPerPageText</span>
+                            <select data-page-size class="@view.PagerInputCss" title="@Parameters.SelectNumberOfRowsToDisplayText" @onchange="OnPageSizeChangedAsync">
+                                @foreach (var size in PageSizeChoices())
+                                {
+                                    <option value="@size" selected="@(size == _pageSize)">@size</option>
+                                }
+                            </select>
+                            <span data-columns-toggle><MaviButtonIcon Icon="lni lni-sliders-horizontal-square-2" ElementVariant="ElementVariant.Text" ThemeColorScheme="ThemeColorScheme.Dark" ElementSize="ElementSize.Regular" OnClick="OpenColumnsDialog" Title="Set visible columns" /></span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <input data-page-goto type="number" min="1" max="@Math.Max(_page.TotalPages, 1)" value="@_pageNumber" class="@view.PagerInputCss" title="Go to page" aria-label="Go to page" @onchange="OnGoToPageAsync" />
+                            <span data-page-prev>
+                                <MaviButtonIcon Icon="lni lni-chevron-left" ElementVariant="ElementVariant.Text" ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Small" Disabled="@(_pageNumber <= 1)" OnClick="PreviousPageAsync" Title="@Parameters.GoToPreviousPageText" />
+                            </span>
+                            <span class="@view.PagerTextCss">@_page.FirstRowNumber–@_page.LastRowNumber of @_page.TotalRows</span>
+                            <span data-page-next>
+                                <MaviButtonIcon Icon="lni lni-chevron-right" ElementVariant="ElementVariant.Text" ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Small" Disabled="@(_pageNumber >= _page.TotalPages)" OnClick="NextPageAsync" Title="@Parameters.GoToNextPageText" />
+                            </span>
+                        </div>
+                    </div>
+                </div>
             }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, "error attempting to display modal dialog that lets user manages column visibility.");
-        }
-        finally
-        {
-            if (_maviBackdrop != null)
-            {
-                await _maviBackdrop.Hide();
-            }
-        }
+        </div>
     }
-
-    private async Task KickOffSetVisibleColumnsModal(MouseClickEventArgs args)
-    {
-        try
-        {
-            if (_setVisibleColumnsDialog != null)
-            {
-                // Capture current visibility so Cancel can restore it (the checkboxes mutate the
-                // column objects directly while the dialog is open).
-                _columnVisibilitySnapshot = _collection?.Columns.ToDictionary(c => c.Key, c => c.Visible);
-
-                await _setVisibleColumnsDialog.Display();
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger?.Error(ex, "error attempting to display modal dialog that lets user manages column visibility.");
-        }
-    }
-}
+</div>

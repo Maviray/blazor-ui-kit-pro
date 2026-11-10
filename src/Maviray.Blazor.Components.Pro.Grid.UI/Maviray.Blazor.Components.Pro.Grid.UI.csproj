@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
 		<Exec Command="npm install @tailwindcss/forms" />
@@ -10,7 +10,6 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 	<IsPackable>true</IsPackable>
-    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
 
 	  <!-- NuGet Package Properties -->
 	  <PackageId>Maviray.Blazor.Components.Pro.Grid.UI</PackageId>
@@ -27,19 +26,12 @@
 	  <PackageReadmeFile>README.md</PackageReadmeFile>
 	  <PackageIcon>icon.png</PackageIcon>
 	  <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-	  <IsPackable>true</IsPackable>
 	  <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
   </PropertyGroup>
 
 	
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Areas\" />
-    <Folder Include="wwwroot\css\" />
-    <Folder Include="wwwroot\js\" />
   </ItemGroup>
 
 

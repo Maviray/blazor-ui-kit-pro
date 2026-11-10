@@ -67,4 +67,20 @@ public class QueryableExtensionsTests
 
         Assert.Equal([1, 2], ordered);
     }
+
+    [Fact]
+    public void ThenByDynamic_BreaksTies_InTheGivenDirection()
+    {
+        var items = new List<TestOrder>
+        {
+            new() { Id = 1, Name = "A" },
+            new() { Id = 2, Name = "A" },
+            new() { Id = 3, Name = "A" },
+            new() { Id = 4, Name = "B" }
+        }.AsQueryable();
+
+        var ordered = items.OrderByDynamic("Name", SortOrder.Ascending).ThenByDynamic("Id", SortOrder.Descending).Select(x => x.Id).ToList();
+
+        Assert.Equal([3, 2, 1, 4], ordered);
+    }
 }
