@@ -56,6 +56,7 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
     private IReadOnlyList<IMaviContextMenuItem> _mainMenu = [];
     private bool _mainMenuStale;
     private bool _mainMenuOpen;
+    private string _mainMenuStyle = string.Empty;
     private int _openRowMenu = -1;
     private string _rowMenuStyle = string.Empty;
 
@@ -600,11 +601,16 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
         return FetchAsync(recount: true);
     }
 
-    private void ToggleMainMenu()
+    private void ToggleMainMenu(MouseClickEventArgs args)
     {
         _mainMenuOpen = !_mainMenuOpen;
+        _mainMenuStyle = MenuPosition(args);
         StateHasChanged();
     }
+
+    // A drop-down menu is fixed to the viewport just below the click, its right edge near the pointer.
+    private static string MenuPosition(MouseClickEventArgs args) =>
+        $"top:{(args.ClientY + 8).ToString(CultureInfo.InvariantCulture)}px;left:{(args.ClientX - 248).ToString(CultureInfo.InvariantCulture)}px;";
 
     private async Task OnMainMenuItemAsync(IMaviContextMenuItem item)
     {
@@ -625,7 +631,7 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
     internal void ToggleRowMenu(int rowIndex, MouseClickEventArgs args)
     {
         _openRowMenu = _openRowMenu == rowIndex ? -1 : rowIndex;
-        _rowMenuStyle = $"top:{(args.ClientY + 8).ToString(CultureInfo.InvariantCulture)}px;left:{(args.ClientX - 248).ToString(CultureInfo.InvariantCulture)}px;";
+        _rowMenuStyle = MenuPosition(args);
         StateHasChanged();
     }
 

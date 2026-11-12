@@ -39,6 +39,7 @@ internal sealed class MaviGridLayout
         var columnCount = columns.Count + 1 + (ShowSelect ? 1 : 0);
         GridStyle = $"grid-template-columns: repeat({columnCount}, minmax(min-content, 200px))";
         HeaderCellCss = $"{spacing} truncate flex items-center justify-start";
+        SelectHeaderCss = $"{spacing} truncate flex items-center justify-center";
         MenuCellCss = $"{spacing} truncate flex items-center justify-end";
         FooterCss = $"bg-white {spacing} flex items-center justify-between gap-4 w-full min-w-80";
         PagerTextCss = $"{textSize} {Tailwind.Theme.Colors.Text.THEME_DEFAULT_EIGHT_TEXT}";
@@ -62,6 +63,10 @@ internal sealed class MaviGridLayout
     public string GridStyle { get; }
 
     public string HeaderCellCss { get; }
+
+    /// <summary>Centred over the row checkboxes. Its own string: a second justify class on a header cell loses to the
+    /// one later in the stylesheet.</summary>
+    public string SelectHeaderCss { get; }
 
     public string MenuCellCss { get; }
 

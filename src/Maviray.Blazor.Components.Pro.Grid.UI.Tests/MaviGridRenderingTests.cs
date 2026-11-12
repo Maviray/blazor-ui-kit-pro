@@ -51,6 +51,34 @@ public class MaviGridRenderingTests : MaviGridTestContext
     }
 
     [Fact]
+    public void OpenMainMenu_IsPlacedAtTheClick_SoTheHeaderCellAndTheScrollingGridCannotClipIt()
+    {
+        // The header cell truncates (overflow: hidden) and the grid scrolls (overflow: auto): a dropdown positioned
+        // inside them is cut off. Like the row menu, it is fixed to the viewport where the user clicked.
+        var grid = RenderGrid(new RecordingFetch(1).Invoke, configure: b => b.Add(
+            x => x.ConstructMainContextMenu,
+            () => Task.FromResult<IEnumerable<Core.Interfaces.IMaviContextMenuItem>>([new MaviContextMenuItem { Title = "Export" }])));
+
+        grid.Find("[data-main-menu-toggle] button").Click(new Microsoft.AspNetCore.Components.Web.MouseEventArgs { ClientX = 500, ClientY = 100 });
+
+        var menu = grid.Find("[data-main-menu]");
+        Assert.Contains("fixed", menu.ClassList);
+        Assert.DoesNotContain("absolute", menu.ClassList);
+        Assert.Equal("top:108px;left:252px;", menu.GetAttribute("style"));
+    }
+
+    [Fact]
+    public void SelectHeader_IsCenteredOverTheCheckboxes()
+    {
+        // Both justify-start and justify-center on one element: the one later in the stylesheet (start) wins.
+        var grid = RenderGrid(new RecordingFetch(1).Invoke, new MaviGridParameters { DisplaySelectColumn = true });
+
+        var header = grid.Find("[data-select-header]");
+        Assert.Contains("justify-center", header.ClassList);
+        Assert.DoesNotContain("justify-start", header.ClassList);
+    }
+
+    [Fact]
     public void Container_ReportsBusyWhileFetching()
     {
         var pending = new TaskCompletionSource<Core.Models.Grid.MaviGridCollection<int>>();

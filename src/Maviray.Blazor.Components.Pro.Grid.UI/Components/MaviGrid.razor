@@ -87,7 +87,7 @@
 
             @if (view.ShowSelect)
             {
-                <div data-select-header class="@view.HeaderCellCss justify-center">
+                <div data-select-header class="@view.SelectHeaderCss">
                     <span class="@MaviGridLayout.HeaderTextCss select-none">Select</span>
                 </div>
             }
@@ -97,7 +97,9 @@
                 {
                     <div data-main-menu-toggle id="@MainMenuId" data-context-menu-id="@MainMenuId" class="relative flex justify-end">
                         <MaviButtonIcon Icon="lni lni-menu-meatballs-1" ElementVariant="ElementVariant.Text" ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Small" OnClick="ToggleMainMenu" Title="@Parameters.ContentMenuTitle" />
-                        <div class="@(_mainMenuOpen ? $"{MaviGridLayout.DropdownCss} absolute right-0 top-full" : "hidden")">
+                        @* Fixed where the user clicked, like the row menu: the header cell truncates and the grid scrolls,
+                           so a dropdown positioned inside them would be clipped. *@
+                        <div data-main-menu class="@(_mainMenuOpen ? $"{MaviGridLayout.DropdownCss} fixed" : "hidden")" style="@(_mainMenuOpen ? _mainMenuStyle : null)">
                             @foreach (var item in _mainMenu)
                             {
                                 <button type="button" data-menu-item class="@MaviGridLayout.MenuItemCss" disabled="@(item.Disabled == true)" @onclick="() => OnMainMenuItemAsync(item)">@item.Title</button>
@@ -185,7 +187,8 @@
                             </span>
                             <span class="@view.PagerTextCss">@_page.FirstRowNumber–@_page.LastRowNumber of @_page.TotalRows</span>
                             <span data-page-next>
-                                <MaviButtonIcon Icon="lni lni-chevron-right" ElementVariant="ElementVariant.Text" ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Small" Disabled="@(_pageNumber >= _page.TotalPages)" OnClick="NextPageAsync" Title="@Parameters.GoToNextPageText" />
+                                @* LineIcons 5 has no lni-chevron-right: the left chevron, mirrored, matches the previous-page button. *@
+                                <MaviButtonIcon Icon="lni lni-chevron-left lni-flip-x" ElementVariant="ElementVariant.Text" ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Small" Disabled="@(_pageNumber >= _page.TotalPages)" OnClick="NextPageAsync" Title="@Parameters.GoToNextPageText" />
                             </span>
                         </div>
                     </div>
