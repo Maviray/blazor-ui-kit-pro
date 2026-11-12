@@ -1,0 +1,139 @@
+@using Maviray.Blazor.Components.Core.Enums
+@using Maviray.Blazor.Components.Material.Components.Inputs
+@using Maviray.Blazor.Components.Material.Extensions
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid
+@typeparam TKey where TKey : IEquatable<TKey>
+@* Rendered by MaviGrid for each row of the current page; not meant to be used on its own. *@
+
+@* One grid row. It re-renders only when its row, layout, selection or menu changes, so grid-level changes such as
+   opening the header menu or a fetch starting don't redraw every cell. *@
+@{
+    var view = Grid.CurrentLayout;
+}
+<div data-row-key="@Row.Key" style="display:contents" class="group">
+    @for (var i = 0; i < view.Columns.Count; i++)
+    {
+        var column = view.Columns[i];
+        var cell = Row.Cells[column.Index];
+        @if (Grid.HandlesCellClicks)
+        {
+            <div data-column-key="@column.Key" class="@view.CellCss(RowIndex, i)" title="@cell.Text" @onclick="() => Grid.OnCellClickAsync(Row, column)">
+                @CellContent(column, cell)
+            </div>
+        }
+        else
+        {
+            @* No click handler, so no per-cell event registration. *@
+            <div data-column-key="@column.Key" class="@view.CellCss(RowIndex, i)" title="@cell.Text">
+                @CellContent(column, cell)
+            </div>
+        }
+    }
+
+    @if (view.ShowSelect)
+    {
+        <div class="@view.SelectCss(RowIndex)">
+            <MaviCheckbox @bind-Value:get="Selected" @bind-Value:set="value => Grid.SetSelected(Row.Key, value)" ThemeColorScheme="ThemeColorScheme.Default" />
+        </div>
+    }
+
+    <div class="@view.ActionsCss(RowIndex)">
+        @if (Row.ContextActions.Count > 0)
+        {
+            @if (view.RowActionsAsIcons)
+            {
+                <div data-row-actions class="flex items-center gap-1">
+                    @foreach (var action in Row.ContextActions)
+                    {
+                        <MaviButtonIcon Icon="@action.Icon" ElementVariant="action.ElementVariant" ThemeColorScheme="action.ThemeColorScheme" ElementSize="action.ElementSize"
+                                        Disabled="@action.Disabled" OnClick="() => Grid.OnRowActionAsync(action)" Title="@action.Title" />
+                    }
+                </div>
+            }
+            else
+            {
+                var menuId = Grid.RowMenuId(RowIndex);
+                <div data-row-actions id="@menuId" data-context-menu-id="@menuId" class="relative">
+                    <MaviButtonIcon Icon="lni lni-menu-meatballs-1" ElementVariant="ElementVariant.Text" ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Small"
+                                    OnClick="args => Grid.ToggleRowMenu(RowIndex, args)" Title="@Grid.Parameters.ContentMenuTitle" />
+                    <div class="@(MenuOpen ? $"{MaviGridLayout.DropdownCss} fixed" : "hidden")" style="@MenuStyle">
+                        @foreach (var action in Row.ContextActions)
+                        {
+                            <button type="button" class="@MaviGridLayout.MenuItemCss" disabled="@action.Disabled" @onclick="() => Grid.OnRowActionAsync(action)">@action.Title</button>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private MaviGridRow<TKey>? _renderedRow;
+    private int _renderedLayout = -1;
+    private int _renderedIndex = -1;
+    private bool _renderedSelected;
+    private bool _renderedMenuOpen;
+    private string? _renderedMenuStyle;
+
+    [Parameter, EditorRequired]
+    public MaviGrid<TKey> Grid { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public MaviGridRow<TKey> Row { get; set; } = default!;
+
+    [Parameter]
+    public int RowIndex { get; set; }
+
+    [Parameter]
+    public bool Selected { get; set; }
+
+    [Parameter]
+    public bool MenuOpen { get; set; }
+
+    [Parameter]
+    public string? MenuStyle { get; set; }
+
+    /// <summary>The grid's layout version; a new value re-renders the row.</summary>
+    [Parameter]
+    public int LayoutVersion { get; set; }
+
+    protected override bool ShouldRender()
+    {
+        if (ReferenceEquals(Row, _renderedRow) && LayoutVersion == _renderedLayout && RowIndex == _renderedIndex
+            && Selected == _renderedSelected && MenuOpen == _renderedMenuOpen && MenuStyle == _renderedMenuStyle)
+        {
+            return false;
+        }
+
+        (_renderedRow, _renderedLayout, _renderedIndex, _renderedSelected, _renderedMenuOpen, _renderedMenuStyle) =
+            (Row, LayoutVersion, RowIndex, Selected, MenuOpen, MenuStyle);
+
+        return true;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // The first render bypasses ShouldRender; remember what it drew.
+        if (firstRender)
+        {
+            (_renderedRow, _renderedLayout, _renderedIndex, _renderedSelected, _renderedMenuOpen, _renderedMenuStyle) =
+                (Row, LayoutVersion, RowIndex, Selected, MenuOpen, MenuStyle);
+        }
+    }
+
+    private RenderFragment CellContent(MaviGridColumn column, MaviGridCell cell) => builder =>
+    {
+        if (column.GraphicDisplay)
+        {
+            builder.OpenElement(0, "div");
+            builder.AddAttribute(1, "class", cell.ThemeColorScheme.GetBadgeCss());
+            builder.AddContent(2, Grid.DisplayText(cell.Text));
+            builder.CloseElement();
+        }
+        else
+        {
+            builder.AddContent(3, Grid.DisplayText(cell.Text));
+        }
+    };
+}

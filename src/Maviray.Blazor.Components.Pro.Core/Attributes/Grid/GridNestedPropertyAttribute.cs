@@ -1,12 +1,11 @@
 ﻿namespace Maviray.Blazor.Components.Pro.Core.Attributes.Grid;
 
-[AttributeUsage(AttributeTargets.Property)]
-public class GridNestedPropertyAttribute : Attribute
+/// <summary>
+/// Makes a property of a related model (one referenced through <see cref="GridNavPropertyAttribute"/>) a grid
+/// column with the given header title.
+/// </summary>
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+public sealed class GridNestedPropertyAttribute(string title) : Attribute
 {
-    public string? Title { get; init; }
-
-    public GridNestedPropertyAttribute(string title)
-    {
-        Title = title;
-    }
+    public string Title { get; } = title;
 }

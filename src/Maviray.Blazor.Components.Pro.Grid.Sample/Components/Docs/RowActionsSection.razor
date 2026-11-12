@@ -1,0 +1,46 @@
+<DocSection Anchor="row-actions" Number="4" Title="Row actions"
+            Summary="Each row can offer actions such as Edit or Delete. The grid model returns them from GetContextActions; the grid shows them as icon buttons or in a drop-down menu, and raises OnRowContextMenuClick.">
+
+    <div class="grid gap-6">
+        <div>
+            <h3 class="@DocStyles.Label mb-2">As icons: TableRowContextMenuDisplayStyle.Icons</h3>
+            <div class="@DocStyles.Demo">
+                <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_icons" OnRowContextMenuClick="OnRowAction" />
+            </div>
+        </div>
+        <div>
+            <h3 class="@DocStyles.Label mb-2">In a drop-down: TableRowContextMenuDisplayStyle.DropDown (the default)</h3>
+            <div class="@DocStyles.Demo">
+                <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_dropDown" OnRowContextMenuClick="OnRowAction" />
+            </div>
+        </div>
+    </div>
+
+    <DocNote Label="Last row action" Kind="success">@_lastAction</DocNote>
+
+    <DocCode Caption="DocItemWithActionsModel.cs" Code="@DocSnippets.RowActionsModel" />
+    <DocCode Caption="The page" Code="@DocSnippets.RowActionsPage" />
+
+    <DocNote Label="Check access when you act" Kind="warning">
+        The grid only shows what your model returns. Check that the user may edit or delete the row where you handle the
+        click, and again before acting on <code>SelectedKeys</code>.
+    </DocNote>
+</DocSection>
+
+@code {
+    private readonly MaviGridParameters _icons = new() { TableRowContextMenuDisplayStyle = TableRowContextMenuDisplayStyle.Icons, PageSize = 5 };
+    private readonly MaviGridParameters _dropDown = new() { TableRowContextMenuDisplayStyle = TableRowContextMenuDisplayStyle.DropDown, PageSize = 5 };
+    private string _lastAction = "none yet";
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocItemWithActionsModel, int> GridData { get; set; } = default!;
+
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        GridData.BuildPageAsync(query, cancellationToken: cancellationToken);
+
+    private void OnRowAction(IMaviRowContextMenuItem<int> action)
+    {
+        _lastAction = $"{action.Title} on row {action.Key}";
+        StateHasChanged();
+    }
+}

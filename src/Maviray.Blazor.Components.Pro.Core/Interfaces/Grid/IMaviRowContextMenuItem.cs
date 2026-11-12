@@ -2,21 +2,21 @@
 
 namespace Maviray.Blazor.Components.Pro.Core.Interfaces.Grid;
 
+/// <summary>An action shown on a grid row, as an icon button or a drop-down entry.</summary>
 public interface IMaviRowContextMenuItem<TKey> where TKey : IEquatable<TKey>
 {
-    public TKey? Key { get; set; }
+    /// <summary>Key of the row the action belongs to.</summary>
+    TKey? Key { get; }
 
-    public string Guid { get; set; }
+    string? Title { get; }
 
-    public string? Title { get; set; } 
+    string? Icon { get; }
 
-    public string? Icon { get; set; }
+    bool Disabled { get; }
 
-    public bool Disabled { get; set; }
+    ElementVariant ElementVariant { get; }
 
-    public ElementVariant ElementVariant { get; set; }
+    ThemeColorScheme ThemeColorScheme { get; }
 
-    public ThemeColorScheme ThemeColorScheme { get; set; }
-
-    public ElementSize ElementSize { get; set; }
+    ElementSize ElementSize { get; }
 }

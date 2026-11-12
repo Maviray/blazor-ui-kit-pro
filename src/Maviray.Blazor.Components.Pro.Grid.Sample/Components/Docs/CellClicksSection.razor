@@ -1,0 +1,37 @@
+@using Maviray.Blazor.Components.Pro.Core.Enums.Grid
+
+<DocSection Anchor="cell-clicks" Number="6" Title="Cell clicks"
+            Summary="Set OnCellClick to react when a user clicks a cell, for example to open the item. It reports the row key, the column key and the column's cell behaviour; a Navigational column is shown bold, as a link.">
+
+    <div class="@DocStyles.Demo">
+        <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_parameters" OnCellClick="OnCellClick" />
+    </div>
+
+    <DocNote Label="Last cell click" Kind="success">@_lastClick</DocNote>
+
+    <DocCode Code="@DocSnippets.CellClicks" />
+
+    <p class="@DocStyles.Body mt-4">
+        Without <code>OnCellClick</code> the cells register no click handlers at all. Here the demo shows the click
+        instead of navigating.
+    </p>
+</DocSection>
+
+@code {
+    private readonly MaviGridParameters _parameters = new() { PageSize = 5 };
+    private string _lastClick = "none yet (try a Name)";
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocItemModel, int> GridData { get; set; } = default!;
+
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        GridData.BuildPageAsync(query, cancellationToken: cancellationToken);
+
+    private void OnCellClick(CellClickParameters<int> cell)
+    {
+        _lastClick = cell.CellBehavior == MaviGridColumnCellBehavior.Navigational
+            ? $"row {cell.RowKey}, column \"{cell.ColumnKey}\": a Navigational column, so the app would open /items/{cell.RowKey}"
+            : $"row {cell.RowKey}, column \"{cell.ColumnKey}\"";
+        StateHasChanged();
+    }
+}

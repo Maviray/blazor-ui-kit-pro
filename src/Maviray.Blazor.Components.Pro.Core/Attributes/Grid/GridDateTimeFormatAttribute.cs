@@ -1,14 +1,10 @@
 namespace Maviray.Blazor.Components.Pro.Core.Attributes.Grid;
 
-[AttributeUsage(AttributeTargets.Property)]
-public class GridDateTimeFormatAttribute : Attribute
+/// <summary>
+/// Format string (invariant culture) for a date or time column, for example <c>"yyyy-MM-dd"</c>.
+/// </summary>
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+public sealed class GridDateTimeFormatAttribute(string format) : Attribute
 {
-    // Custom format string applied when rendering DateTime / DateTimeOffset cells, e.g. "yyyy-MM-dd"
-    // to omit a time part that is always zero. When unset, the factory's default format is used.
-    public string Format { get; init; }
-
-    public GridDateTimeFormatAttribute(string format)
-    {
-        Format = format;
-    }
+    public string Format { get; } = format;
 }

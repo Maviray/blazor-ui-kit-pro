@@ -1,1 +1,12 @@
 ﻿@import "tailwindcss";
+
+/* Inline code in the documentation page (code blocks are styled by DocCode). The theme variables come from the
+   Material stylesheet at run time. */
+.mavi-doc :not(pre) > code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.85em;
+    padding: 0.05rem 0.3rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-default-one);
+    color: var(--theme-default-ten);
+}

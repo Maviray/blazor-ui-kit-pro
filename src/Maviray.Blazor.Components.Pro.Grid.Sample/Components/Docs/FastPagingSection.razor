@@ -1,0 +1,59 @@
+<DocSection Anchor="fast-paging" Number="14" Title="Fast paging on large tables"
+            Summary="Four things keep paging fast however big the table is. Two are automatic; two are one line each.">
+
+    <ul class="@DocStyles.Body list-disc pl-6 mb-6 space-y-2">
+        <li><strong>Count reuse (automatic).</strong> When only the page, the page size or the sort changes, the grid sends the total it already has (<code>KnownTotalRows</code>) and the factory skips the count. It counts again when the filters change, on <code>RefreshAsync()</code>, and when a page holds fewer rows than the total predicts.</li>
+        <li><strong>Keyset paging (automatic).</strong> Moving to the next or previous page, the grid sends a cursor (<code>Cursor</code>) and the EF data source seeks from the last row seen (<code>WHERE … &gt; …</code>) instead of skipping rows (<code>OFFSET</code>), so page 5,000 costs the same as page 2. Jumping to a page number, or going back to page 1, skips as usual.</li>
+        <li><strong>Projection (<code>GridFetchOptions.Projection</code>).</strong> Selects only the shown columns instead of whole entities with their includes. List any member <code>ConstructFrom</code> reads that isn't a column: <code>new GridProjection&lt;Item&gt;().Load(x =&gt; x.Notes)</code>.</li>
+        <li><strong>The prerendered page (<code>PrerenderedPageKey</code>).</strong> The page fetched while prerendering is handed to the interactive grid, so each page view queries (and audits) once, and the rows are in the first HTML.</li>
+    </ul>
+
+    <div class="@DocStyles.Demo">
+        <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_parameters" PrerenderedPageKey="docs-fast-paging" />
+    </div>
+
+    <DocNote Label="What the grid sent with the last fetch">
+        @if (_lastQuery is null)
+        {
+            <span>nothing since the page became interactive: the prerendered page was reused. Press next page.</span>
+        }
+        else
+        {
+            <span>page @_lastQuery.PageNumber, KnownTotalRows = @(_lastQuery.KnownTotalRows?.ToString() ?? "null (count)"),
+                Cursor = @(_lastQuery.Cursor is { } cursor ? $"{cursor.Direction} ({cursor.Value.Length} characters)" : "null (skip rows)")</span>
+        }
+    </DocNote>
+
+    <DocCode Code="@DocSnippets.FastPaging" />
+
+    <p class="@DocStyles.Body mt-4">
+        Keyset paging needs an order the database can seek: a sort on a column of the entity itself that isn't null (or
+        has a null default), followed by the primary key. Otherwise the page is skipped to as before. When your own code
+        loads the pages, the same hints arrive in <code>MaviGridQuery</code> (section 15).
+    </p>
+</DocSection>
+
+@code {
+    private static readonly GridFetchOptions<DbSampleItemOne, DocItemModel> Options = new()
+    {
+        Projection = new GridProjection<DbSampleItemOne>()
+    };
+
+    // Amount can't be null, so the data source can seek on (Amount, Id); a nullable sort column would be skipped to.
+    private readonly MaviGridParameters _parameters = new() { SortColumnKey = "Integer" };
+    private MaviGridQuery? _lastQuery;
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocItemModel, int> GridData { get; set; } = default!;
+
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken)
+    {
+        if (RendererInfo.IsInteractive)
+        {
+            _lastQuery = query;
+            StateHasChanged();
+        }
+
+        return GridData.BuildPageAsync(query, Options, cancellationToken);
+    }
+}

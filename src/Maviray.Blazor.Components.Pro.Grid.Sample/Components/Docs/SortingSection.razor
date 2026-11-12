@@ -1,0 +1,35 @@
+<DocSection Anchor="sorting" Number="3" Title="Sorting, paging and filtering"
+            Summary="Users sort by clicking a header, page with the pager, and filter by typing under a column. Parameters sets where the grid starts; after that the user's choices win.">
+
+    <div class="@DocStyles.Demo">
+        <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_parameters" />
+    </div>
+
+    <DocCode Code="@DocSnippets.SortingFiltering" />
+
+    <ul class="@DocStyles.Body list-disc pl-6 mt-4 space-y-1">
+        <li>A column can be sorted and filtered when it has a data item path: a member of the entity with the same name, or a <code>GridPropertyPathMap</code> entry (section 10). Other columns show no sort button and no filter box, and the factory ignores their keys.</li>
+        <li>Filters by column type: text contains what was typed; numbers, dates, ids and characters must be equal; booleans and enums match their display text.</li>
+        <li>A value the column can't hold (letters in a number column, 99999999999 in an <code>int</code>) matches no rows.</li>
+        <li>Filter values reach the database as query parameters, never as SQL text.</li>
+    </ul>
+</DocSection>
+
+@code {
+    private readonly MaviGridParameters _parameters = new()
+    {
+        SortColumnKey = "Integer",
+        SortOrder = SortOrder.Descending,
+        PageSize = 5,
+        PageSizeOptions = [5, 10, 20],
+        EnableFilters = true,
+        FilterDebounceMilliseconds = 300,
+        FilterPlaceholderText = "Filter..."
+    };
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocItemModel, int> GridData { get; set; } = default!;
+
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        GridData.BuildPageAsync(query, cancellationToken: cancellationToken);
+}

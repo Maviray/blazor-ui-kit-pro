@@ -35,7 +35,9 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
+        # DOTNET_VERSION runs the GitVersion tool; global.json pins the SDK that builds and tests the solution.
         dotnet-version: ${{ env.DOTNET_VERSION }}
+        global-json-file: global.json
 
     - name: Install GitVersion
       uses: gittools/actions/gitversion/setup@v0.10.2

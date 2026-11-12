@@ -1,38 +1,59 @@
-﻿using Maviray.Blazor.Components.Core.Enums;
-using Maviray.Blazor.Components.Pro.Core.Enums.Grid;
+﻿using Maviray.Blazor.Components.Pro.Core.Enums.Grid;
 
 namespace Maviray.Blazor.Components.Pro.Core.Models.Grid;
 
-public class MaviGridColumn
+/// <summary>A grid column, built from a model property. Immutable and shared by every page of the same grid.</summary>
+public sealed class MaviGridColumn
 {
-    public string Guid { get; init; } = System.Guid.NewGuid().ToString();
-    public string? Title { get; set; }
-    public string Key { get; set; } = System.Guid.NewGuid().ToString(); // data item property name
-    public bool Active { get; set; }
-    public bool Visible { get; set; } = true;
-    public int Sequence { get; set; }
-    public SortOrder SortOrder { get; set; }
-    public MaviGridColumnCellBehavior MaviGridColumnBehavior { get; set; }
-    public MaviGridColumnType GridColumnType { get; set; }
-    public MaviGridPropertyType GridPropertyType { get; set; }
-    public MaviGridFilterCriteria CurrentFilter { get; set; }
-    public HorizontalPosition HorizontalTextAlignment { get; set; }
-    public object? CurrentFilerValue { get; set; }
-    public string? BoolPositiveDisplay { get; set; } // displays value when column is of boolean type and value is true/selected
-    public string? BoolNegativeDisplay { get; set; } // displays value when column is of boolean type and value is false/unselected
-    public string? DateTimeFormat { get; set; } // custom format applied to DateTime/DateTimeOffset cells; null uses the default
+    /// <summary>The model property name, or <c>Navigation.Property</c> for a nested column.</summary>
+    public required string Key { get; init; }
 
-    // When true, the column's cells should be rendered with an advanced/graphical presentation
-    // (e.g. a badge) instead of plain text. Driven by GridAdvancedDisplayAttribute on the model property.
-    public bool GraphicDisplay { get; set; }
+    public required string Title { get; init; }
 
-    // When true, the column's header gets a clickable sort affordance. False when the property could
-    // not be resolved to a TDataItem path (see GridPropertyPathMap) - set once per column at build time.
-    public bool Sortable { get; set; } = true;
+    /// <summary>Position in <see cref="MaviGridCollection{TKey}.Columns"/> and in each row's <see cref="MaviGridRow{TKey}.Cells"/>.</summary>
+    public int Index { get; init; }
 
-    // When true, the column renders a filter input. False when the property could not be resolved to
-    // a TDataItem path (see GridPropertyPathMap) - set once per column at build time.
-    public bool Filterable { get; set; } = true;
+    public int Sequence { get; init; }
 
-    public Dictionary<string, string>? PossibleFilterValues { get; set; } = [];
+    public MaviGridPropertyType PropertyType { get; init; }
+
+    public MaviGridColumnCellBehavior CellBehavior { get; init; }
+
+    /// <summary>Cells render as badges coloured by their <see cref="MaviGridCell.ThemeColorScheme"/>.</summary>
+    public bool GraphicDisplay { get; init; }
+
+    /// <summary>The column resolves to a data item path, so the grid may sort by it.</summary>
+    public bool Sortable { get; init; }
+
+    /// <summary>The column resolves to a data item path, so the grid may filter by it.</summary>
+    public bool Filterable { get; init; }
+
+    /// <summary>Text of a <see langword="true"/> cell in a boolean column.</summary>
+    public string TrueText { get; init; } = bool.TrueString;
+
+    /// <summary>Text of a <see langword="false"/> cell in a boolean column.</summary>
+    public string FalseText { get; init; } = bool.FalseString;
+
+    /// <summary>The members of an enum column in declaration order, with the text shown for each.</summary>
+    public IReadOnlyList<MaviGridEnumOption> EnumOptions { get; init; } = [];
+
+    /// <summary>The same column at another position, when other columns are left out of the page.</summary>
+    internal MaviGridColumn WithIndex(int index) => new()
+    {
+        Key = Key,
+        Title = Title,
+        Index = index,
+        Sequence = Sequence,
+        PropertyType = PropertyType,
+        CellBehavior = CellBehavior,
+        GraphicDisplay = GraphicDisplay,
+        Sortable = Sortable,
+        Filterable = Filterable,
+        TrueText = TrueText,
+        FalseText = FalseText,
+        EnumOptions = EnumOptions
+    };
 }
+
+/// <summary>An enum member: its <see cref="Name"/> (used in filters) and the <see cref="Text"/> shown in cells.</summary>
+public readonly record struct MaviGridEnumOption(string Name, string Text);

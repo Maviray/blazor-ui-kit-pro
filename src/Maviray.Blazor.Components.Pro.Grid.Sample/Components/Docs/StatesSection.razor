@@ -1,0 +1,67 @@
+<DocSection Anchor="states" Number="12" Title="Empty, error, denied and loading states"
+            Summary="The grid has a built-in look for each state. Change its text through Parameters, or replace it with your own markup.">
+
+    <div class="grid gap-6 lg:grid-cols-3">
+        <div>
+            <h3 class="@DocStyles.Label mb-2">No rows: NoDataContent</h3>
+            <div class="@DocStyles.Demo">
+                <MaviGrid TKey="int" FetchData="FetchNothingAsync">
+                    <NoDataContent>
+                        <span class="@DocStyles.Body">No items match. <a class="underline" href="/docs#states">Add one</a></span>
+                    </NoDataContent>
+                </MaviGrid>
+            </div>
+        </div>
+        <div>
+            <h3 class="@DocStyles.Label mb-2">FetchData failed: FetchErrorContent</h3>
+            <div class="@DocStyles.Demo">
+                <MaviGrid TKey="int" FetchData="FetchFailingAsync" OnFetchError="OnFetchError">
+                    <FetchErrorContent>
+                        <span class="@DocStyles.Body">The items service is down. Try again in a minute.</span>
+                    </FetchErrorContent>
+                </MaviGrid>
+            </div>
+        </div>
+        <div>
+            <h3 class="@DocStyles.Label mb-2">Access denied: the policy's message</h3>
+            <div class="@DocStyles.Demo">
+                <MaviGrid TKey="int" FetchData="FetchDeniedAsync" />
+            </div>
+        </div>
+    </div>
+
+    <DocNote Label="OnFetchError received" Kind="warning">@(_lastError ?? "nothing yet")</DocNote>
+
+    <DocCode Caption="No rows" Code="@DocSnippets.NoData" />
+    <DocCode Caption="Fetch error" Code="@DocSnippets.FetchError" />
+    <DocCode Caption="Access denied" Code="@DocSnippets.Denied" />
+    <DocCode Caption="While prerendering" Code="@DocSnippets.Prerender" />
+
+    <ul class="@DocStyles.Body list-disc pl-6 mt-4 space-y-1">
+        <li>Without <code>NoDataContent</code>, the empty state shows <code>NoDataAvailableTitle</code> and a button that clears the filters and loads again.</li>
+        <li>Without <code>FetchErrorContent</code>, the error state shows <code>FetchErrorTitle</code> and a Retry button.</li>
+        <li>A denied grid keeps its headers and header menu, but has no filters, selection column or pager.</li>
+        <li>While a fetch runs the grid shows a spinner over the current rows.</li>
+    </ul>
+</DocSection>
+
+@code {
+    private static readonly GridFetchOptions<DbSampleItemOne, DocItemModel> NothingMatches = new() { Filter = _ => false };
+    private string? _lastError;
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocItemModel, int> GridData { get; set; } = default!;
+
+    private Task<MaviGridCollection<int>> FetchNothingAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        GridData.BuildPageAsync(query, NothingMatches, cancellationToken);
+
+    // Stands in for a service that is down.
+    private static Task<MaviGridCollection<int>> FetchFailingAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        Task.FromException<MaviGridCollection<int>>(new InvalidOperationException("Demo: the items service did not answer."));
+
+    // Stands in for an access policy that denies (section 13); GridPageBuilder builds the same page the factory would.
+    private static Task<MaviGridCollection<int>> FetchDeniedAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        Task.FromResult(GridPageBuilder<DbSampleItemOne, DocItemModel, int>.Denied("Only managers can see these items."));
+
+    private void OnFetchError(Exception exception) => _lastError = exception.Message;
+}

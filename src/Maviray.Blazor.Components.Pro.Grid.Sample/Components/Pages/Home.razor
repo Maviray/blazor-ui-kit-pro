@@ -4,8 +4,8 @@
 @using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid
 @using Maviray.Blazor.Components.Pro.Core.Models
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid
-@using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid.Menu
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Enums
 @using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models
 @using Maviray.Blazor.Components.Pro.Grid.Sample.Models
 @using Maviray.Blazor.Components.Pro.Grid.UI.Components
@@ -13,178 +13,84 @@
 <PageTitle>Home</PageTitle>
 
 <div class="p-4">
-    <MaviGrid @ref="_grid" 
-              TDataItem="DbSampleItemOne"
-              TModel="DbSampleItemOneModel" 
-              TKey="int" FetchData="FetchGridData" 
-              Parameters="_gridParameters" 
-              ConstructMainContextMenu="FetchGridMainMenu" 
-              OnMainContextMenuButtonClick="OnMainMenuItemClick" 
-              OnRowContextMenuClick="OnRowContextMenuClick"
-              OnCellClick="CellClick">
-
-    </MaviGrid>
+    <MaviGrid @ref="_grid" TKey="int"
+              FetchData="FetchPageAsync"
+              Parameters="_gridParameters"
+              ConstructMainContextMenu="BuildMainMenuAsync"
+              OnMainContextMenuButtonClick="OnMainMenuItemClickAsync"
+              OnRowContextMenuClick="OnRowAction"
+              OnCellClick="OnCellClick" />
 </div>
 
 @code
 {
-    private readonly MaviGridParameters _gridParameters = new()
+    // Badge colours for the graphic columns, keyed by column key. Each resolver gets the raw property value.
+    private static readonly GridFetchOptions<DbSampleItemOne, DbSampleItemOneModel> FetchOptions = new()
     {
-       EnableFilters = true,
-       TableRowContextMenuDisplayStyle = TableRowContextMenuDisplayStyle.Icons,
-       DisplaySelectColumn = true
+        CellThemes = new Dictionary<string, Func<object?, ThemeColorScheme>>
+        {
+            ["Integer"] = value => value switch
+            {
+                int n when n < 100 => ThemeColorScheme.Primary,
+                int n when n < 300 => ThemeColorScheme.Secondary,
+                int n when n < 500 => ThemeColorScheme.Success,
+                int n when n < 700 => ThemeColorScheme.Alert,
+                int => ThemeColorScheme.Warning,
+                _ => ThemeColorScheme.Default
+            },
+            ["SampleEnum"] = value => value switch
+            {
+                SampleEnum.One => ThemeColorScheme.Primary,
+                SampleEnum.Two => ThemeColorScheme.Secondary,
+                SampleEnum.Three => ThemeColorScheme.Success,
+                SampleEnum.Four => ThemeColorScheme.Alert,
+                SampleEnum.Five => ThemeColorScheme.Warning,
+                SampleEnum.Six => ThemeColorScheme.Info,
+                _ => ThemeColorScheme.Default
+            }
+        }
     };
 
-    private MaviGrid<DbSampleItemOne, DbSampleItemOneModel, int>? _grid;
+    private readonly MaviGridParameters _gridParameters = new()
+    {
+        EnableFilters = true,
+        TableRowContextMenuDisplayStyle = TableRowContextMenuDisplayStyle.Icons,
+        DisplaySelectColumn = true,
+        SortColumnKey = "Id"
+    };
+
+    private MaviGrid<int>? _grid;
 
     [Inject]
-    private IGenericGridDataFactory<DbSampleItemOne, DbSampleItemOneModel, int>? DataFactory { get; set; }
+    private IGridDataFactory<DbSampleItemOne, DbSampleItemOneModel, int> DataFactory { get; set; } = default!;
 
     [Inject]
-    private ILogger<Home>? Logger { get; set; }
+    private ILogger<Home> Logger { get; set; } = default!;
 
-    private async Task<MaviGridCollection<int>?> FetchGridData(MaviGridDataQueryParameters parameters)
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        DataFactory.BuildPageAsync(query, FetchOptions, cancellationToken);
+
+    private static Task<IEnumerable<IMaviContextMenuItem>> BuildMainMenuAsync() =>
+        Task.FromResult<IEnumerable<IMaviContextMenuItem>>(
+        [
+            new MaviContextMenuItem { Key = "add", Title = "Add" },
+            new MaviContextMenuItem { Key = "delete-selected", Title = "Delete Selected" },
+            new MaviContextMenuItem { Key = "refresh", Title = "Refresh" }
+        ]);
+
+    private async Task OnMainMenuItemClickAsync(IMaviContextMenuItem item)
     {
-        if (string.IsNullOrWhiteSpace(parameters.OrderByColumnKey))
+        Logger.LogInformation("Main menu item {Key} clicked; {Count} rows selected.", item.Key, _grid?.SelectedKeys.Count);
+
+        if (item.Key == "refresh" && _grid is not null)
         {
-            parameters.OrderByColumnKey = "Id";
-        }
-
-        if (DataFactory == null)
-        {
-            return null;
-        }
-
-        // Per-column colour logic for graphic (badge-style) columns. Keyed by column key; each resolver
-        // receives the finalised cell plus the raw, unformatted value so it can run typed logic.
-        const int integerBaselineOne = 100;
-        const int integerBaselineTwo = 300;
-        const int integerBaselineThree = 500;
-        const int integerBaselineFour = 700;
-
-        var cellThemeResolvers = new Dictionary<string, Func<MaviGridCell<int>, object?, ThemeColorScheme>>
-        {
-            ["Integer"] = (cell, value) =>
-            {
-                if (value is not int number)
-                {
-                    return ThemeColorScheme.Default;
-                }
-
-                if (number < integerBaselineOne)
-                {
-                    return ThemeColorScheme.Primary; // below baseline
-                }
-
-                if (number < integerBaselineTwo)
-                {
-                    return ThemeColorScheme.Secondary; // below baseline
-                }
-
-                if (number < integerBaselineThree)
-                {
-                    return ThemeColorScheme.Success; // below baseline
-                }
-
-                if(number < integerBaselineFour)
-                {
-                    return ThemeColorScheme.Alert; // below baseline
-                }
-
-                return ThemeColorScheme.Warning; // below baseline
-            },
-            ["SampleEnum"] = (cell, value) =>
-            {
-                if (value is null)
-                {
-                    return ThemeColorScheme.Default;
-                }
-
-                if (value.ToString() == "One")
-                {
-                    return ThemeColorScheme.Primary;
-                }
-                if (value.ToString() == "Two")
-                {
-                    return ThemeColorScheme.Secondary;
-                }
-                if (value.ToString() == "Three")
-                {
-                    return ThemeColorScheme.Success;
-                }
-                if (value.ToString() == "Four")
-                {
-                    return ThemeColorScheme.Alert;
-                }
-                if (value.ToString() == "Five")
-                {
-                    return ThemeColorScheme.Warning;
-                }
-                if (value.ToString() == "Six")
-                {
-                    return ThemeColorScheme.Info;
-                }
-
-                return ThemeColorScheme.Default;
-            }
-        };
-
-        return await DataFactory.BuildDataCollection(parameters, cellThemeResolvers: cellThemeResolvers, additionalFilter: x => x.Name == "sfsfsadf");
-    }
-
-    private Task<IEnumerable<IMaviContextMenuItem>> FetchGridMainMenu()
-    {
-        var items = new List<IMaviContextMenuItem>
-        {
-            new MaviContextMenuItem()
-            {
-                Key = "add",
-                Title = "Add"
-            },
-            new MaviContextMenuItem()
-            {
-                Key = "delete-selected",
-                Title = "Delete Selected"
-            },
-            new MaviContextMenuItem()
-            {
-                Key = "edit",
-                Title = "Edit"
-            },
-            new MaviContextMenuItem()
-            {
-                Key = "refresh",
-                Title = "Refresh"
-            }
-        };
-
-        return Task.FromResult(items.AsEnumerable());
-    }
-
-    private async Task OnMainMenuItemClick(IMaviContextMenuItem action)
-    {
-        Logger?.LogInformation($"Main menu item clicked: {action.Key}");
-
-        if (action.Key == "refresh")
-        {
-            if (_grid != null)
-            {
-                await _grid.Refresh();
-            }
+            await _grid.RefreshAsync();
         }
     }
 
-    private Task OnRowContextMenuClick(IMaviRowContextMenuItem<int> action)
-    {
-        Logger?.LogInformation($"row menu item clicked: {action.Key}");
+    private void OnRowAction(IMaviRowContextMenuItem<int> action) =>
+        Logger.LogInformation("Row action {Title} clicked for row {Key}.", action.Title, action.Key);
 
-        return Task.CompletedTask;
-    }
-
-    private Task CellClick(CellClickParameters<int> parameters)
-    {
-        Logger?.LogInformation($"Cell clicked. Row: {parameters.RowKey}, Column: {parameters.ColumnKey}");
-
-        return Task.CompletedTask;
-    }
+    private void OnCellClick(CellClickParameters<int> cell) =>
+        Logger.LogInformation("Cell clicked. Row: {RowKey}, column: {ColumnKey}.", cell.RowKey, cell.ColumnKey);
 }

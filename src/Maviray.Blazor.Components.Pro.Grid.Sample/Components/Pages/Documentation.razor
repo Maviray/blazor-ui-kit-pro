@@ -1,0 +1,69 @@
+@page "/docs"
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Components.Docs
+
+<PageTitle>MaviGrid documentation</PageTitle>
+
+<div class="mavi-doc p-6 max-w-7xl mx-auto">
+    <header class="mb-10">
+        <h1 class="@DocStyles.PageTitle">MaviGrid Component</h1>
+        <p class="@DocStyles.Lead max-w-4xl">
+            A server-paged data grid for Blazor. It shows one page of a table at a time: every page, sort and filter change
+            asks your code for exactly the rows on screen, so a table with millions of rows stays fast.
+        </p>
+        <p class="@DocStyles.Lead max-w-4xl mt-3">
+            You describe the columns once, in a grid model class, and give the grid a fetch method that returns a page.
+            With EF Core, <code>IGridDataFactory</code> does the fetching for you; access policies decide who may see which
+            rows and columns. For a short list already in memory, <code>MaviInMemoryTable</code> from the Material library
+            is simpler. Every grid on this page is live, with the code that runs it underneath.
+        </p>
+    </header>
+
+    <nav aria-label="Contents" class="mb-14 rounded-lg border border-(--theme-default-three) p-5">
+        <h2 class="@DocStyles.Label mb-3">Contents</h2>
+        <ol class="@DocStyles.Body list-decimal pl-6 grid gap-x-10 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach (var (anchor, title) in Contents)
+            {
+                <li><a class="underline-offset-2 hover:underline" href="/docs#@anchor">@title</a></li>
+            }
+        </ol>
+    </nav>
+
+    <ReferenceSection />
+    <GettingStartedSection />
+    <SortingSection />
+    <RowActionsSection />
+    <MainMenuSection />
+    <CellClicksSection />
+    <SelectionSection />
+    <AppearanceSection />
+    <FormattingSection />
+    <RelatedDataSection />
+    <RowFiltersSection />
+    <StatesSection />
+    <AccessSection />
+    <FastPagingSection />
+    <OwnServiceSection />
+    <DataModelSection />
+</div>
+
+@code {
+    private static readonly (string Anchor, string Title)[] Contents =
+    [
+        ("reference", "Reference"),
+        ("getting-started", "Getting started"),
+        ("sorting", "Sorting, paging and filtering"),
+        ("row-actions", "Row actions"),
+        ("main-menu", "Header menu"),
+        ("cell-clicks", "Cell clicks"),
+        ("selection", "Selection, columns and refresh"),
+        ("appearance", "Look and texts"),
+        ("formatting", "Badges and formatting"),
+        ("related-data", "Related data and mapped columns"),
+        ("row-filters", "Narrowing the rows"),
+        ("states", "Empty, error, denied and loading states"),
+        ("access", "Access policies, hidden columns and audit"),
+        ("fast-paging", "Fast paging on large tables"),
+        ("own-service", "Loading pages with your own service"),
+        ("data-model", "The grid model")
+    ];
+}

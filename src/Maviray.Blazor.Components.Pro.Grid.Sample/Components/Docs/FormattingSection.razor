@@ -1,0 +1,37 @@
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Enums
+
+<DocSection Anchor="formatting" Number="9" Title="Badges and formatting"
+            Summary="Attributes on the grid model decide how each cell reads: badges coloured by value, enum and boolean texts, and date formats. Cells are formatted on the server in the invariant culture.">
+
+    <div class="@DocStyles.Demo">
+        <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_parameters" />
+    </div>
+
+    <DocCode Caption="DocFormattingModel.cs (part)" Code="@DocSnippets.Formatting" />
+    <DocCode Caption="The page" Code="@DocSnippets.CellThemes" />
+
+    <ul class="@DocStyles.Body list-disc pl-6 mt-4 space-y-1">
+        <li><code>CellThemes</code> gets each cell's raw value and returns a <code>ThemeColorScheme</code>; columns without <code>[GridAdvancedDisplay]</code> ignore it.</li>
+        <li>Boolean and enum filters match the display texts: typing "act" finds Active.</li>
+        <li>Default formats: dates <code>yyyy-MM-dd HH:mm:ss</code>, <code>DateOnly</code> <code>yyyy-MM-dd</code>, numbers as in the invariant culture.</li>
+    </ul>
+</DocSection>
+
+@code {
+    private static readonly GridFetchOptions<DbSampleItemOne, DocFormattingModel> Options = new()
+    {
+        CellThemes = new Dictionary<string, Func<object?, ThemeColorScheme>>
+        {
+            ["Integer"] = value => value is int amount && amount >= 500 ? ThemeColorScheme.Success : ThemeColorScheme.Warning,
+            ["SampleEnum"] = value => value is SampleEnum.One or SampleEnum.Two ? ThemeColorScheme.Primary : ThemeColorScheme.Info
+        }
+    };
+
+    private readonly MaviGridParameters _parameters = new() { EnableFilters = true, PageSize = 5 };
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocFormattingModel, int> GridData { get; set; } = default!;
+
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        GridData.BuildPageAsync(query, Options, cancellationToken);
+}
