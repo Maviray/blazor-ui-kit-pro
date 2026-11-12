@@ -1,0 +1,27 @@
+@* One numbered section of the documentation page, with an anchor for the table of contents. *@
+
+<section id="@Anchor" class="mb-16 scroll-mt-6">
+    <h2 class="@DocStyles.SectionTitle">@Number. @Title</h2>
+    @if (Summary is not null)
+    {
+        <p class="@DocStyles.Body mb-6 max-w-4xl">@Summary</p>
+    }
+    @ChildContent
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Anchor { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public int Number { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? Summary { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

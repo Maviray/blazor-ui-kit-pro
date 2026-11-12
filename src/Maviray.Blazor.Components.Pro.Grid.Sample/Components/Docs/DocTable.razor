@@ -1,0 +1,45 @@
+@* A reference table: name, type, default and description, one row per member. *@
+
+<div class="overflow-x-auto rounded-lg border border-(--theme-default-three)">
+    <table class="min-w-full text-left">
+        <thead class="bg-(--theme-default-one)">
+            <tr>
+                <th class="@DocStyles.Label px-4 py-3">@NameHeader</th>
+                <th class="@DocStyles.Label px-4 py-3">@TypeHeader</th>
+                @if (ShowDefault)
+                {
+                    <th class="@DocStyles.Label px-4 py-3">Default</th>
+                }
+                <th class="@DocStyles.Label px-4 py-3">Description</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-(--theme-default-two)">
+            @foreach (var row in Rows)
+            {
+                <tr class="align-top">
+                    <td class="@DocStyles.Small px-4 py-3 whitespace-nowrap"><code>@row.Name</code></td>
+                    <td class="@DocStyles.Small px-4 py-3 font-mono text-xs">@row.Type</td>
+                    @if (ShowDefault)
+                    {
+                        <td class="@DocStyles.Small px-4 py-3 font-mono text-xs">@row.Default</td>
+                    }
+                    <td class="@DocStyles.Small px-4 py-3">@row.Description</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<DocRow> Rows { get; set; } = [];
+
+    [Parameter]
+    public string NameHeader { get; set; } = "Name";
+
+    [Parameter]
+    public string TypeHeader { get; set; } = "Type";
+
+    [Parameter]
+    public bool ShowDefault { get; set; } = true;
+}

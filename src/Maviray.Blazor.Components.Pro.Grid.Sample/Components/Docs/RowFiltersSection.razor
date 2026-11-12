@@ -1,0 +1,32 @@
+<DocSection Anchor="row-filters" Number="11" Title="Narrowing the rows"
+            Summary="To show only some rows, give the grid a filter of its own, or register a global filter that applies to every grid of a kind. Both limit the count and every page, and the user's column filters apply on top.">
+
+    <h3 class="@DocStyles.Label mb-2">One grid: GridFetchOptions.Filter (only active items with an amount of 100 or more)</h3>
+    <div class="@DocStyles.Demo">
+        <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_parameters" />
+    </div>
+    <DocCode Code="@DocSnippets.OptionsFilter" />
+
+    <h3 class="@DocStyles.Label mt-8 mb-2">Every grid of a kind: IGridGlobalFilterProvider</h3>
+    <p class="@DocStyles.Body mb-1">
+        A global filter suits rules such as soft delete or the current tenant. It is a filter, not a permission: use an
+        access policy (section 13) to decide who may read what. The <a class="underline" href="/scoped">Scoped items</a>
+        page of this sample uses one.
+    </p>
+    <DocCode Code="@DocSnippets.GlobalFilter" />
+</DocSection>
+
+@code {
+    private static readonly GridFetchOptions<DbSampleItemOne, DocItemModel> Options = new()
+    {
+        Filter = item => item.Boolean && item.Integer >= 100
+    };
+
+    private readonly MaviGridParameters _parameters = new() { EnableFilters = true, PageSize = 5 };
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocItemModel, int> GridData { get; set; } = default!;
+
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        GridData.BuildPageAsync(query, Options, cancellationToken);
+}

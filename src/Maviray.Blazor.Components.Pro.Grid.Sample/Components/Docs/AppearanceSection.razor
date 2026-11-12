@@ -1,0 +1,38 @@
+<DocSection Anchor="appearance" Number="8" Title="Look and texts"
+            Summary="Striped rows, a condensed layout, shortened cell text, and every text the grid shows: change them through Parameters, for example to translate them.">
+
+    <div class="@DocStyles.Demo">
+        <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_parameters" ConstructMainContextMenu="BuildMenuAsync" />
+    </div>
+
+    <DocCode Code="@DocSnippets.Appearance" />
+
+    <p class="@DocStyles.Body mt-4">
+        The full list of texts is in reference table 1.3. <code>Class</code> and <code>Style</code> add classes and
+        inline style to the grid's outer element.
+    </p>
+</DocSection>
+
+@code {
+    private readonly MaviGridParameters _parameters = new()
+    {
+        Striped = true,
+        Condensed = true,
+        MaxCellCharsToDisplay = 6,
+        RowsPerPageText = "Items per page",
+        SelectNumberOfRowsToDisplayText = "How many items to show",
+        GoToPreviousPageText = "Back",
+        GoToNextPageText = "Forward",
+        ContentMenuTitle = "More",
+        NoDataAvailableTitle = "Nothing here yet"
+    };
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocItemModel, int> GridData { get; set; } = default!;
+
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        GridData.BuildPageAsync(query, cancellationToken: cancellationToken);
+
+    private static Task<IEnumerable<IMaviContextMenuItem>> BuildMenuAsync() =>
+        Task.FromResult<IEnumerable<IMaviContextMenuItem>>([new MaviContextMenuItem { Key = "export", Title = "Export" }]);
+}

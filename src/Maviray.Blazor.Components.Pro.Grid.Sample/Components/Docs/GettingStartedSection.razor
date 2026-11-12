@@ -1,0 +1,53 @@
+<DocSection Anchor="getting-started" Number="2" Title="Getting started"
+            Summary="What your Blazor app needs, then the smallest working grid. MaviGrid never loads the whole table: it asks your FetchData method for one page at a time, and IGridDataFactory loads just the rows of that page from the database.">
+
+    <h3 class="@DocStyles.SubTitle">2.1 Dependencies</h3>
+    <DocTable Rows="Dependencies" NameHeader="Dependency" TypeHeader="Where" ShowDefault="false" />
+
+    <DocCode Caption="YourApp.csproj" Code="@DocSnippets.Packages" />
+    <DocCode Caption="Program.cs" Code="@DocSnippets.ProgramCs" />
+    <DocCode Caption="Components/App.razor" Code="@DocSnippets.AppRazor" />
+    <DocCode Caption="Components/_Imports.razor" Code="@DocSnippets.Imports" />
+
+    <h3 class="@DocStyles.SubTitle">2.2 A minimal grid</h3>
+    <p class="@DocStyles.Body mb-3">
+        With the dependencies in place, a grid needs two things: a grid model (which columns to show) and a page that
+        injects <code>IGridDataFactory</code> and hands it each request. This one runs below, over 1,000 rows.
+    </p>
+
+    <div class="@DocStyles.Demo">
+        <MaviGrid TKey="int" FetchData="FetchPageAsync" />
+    </div>
+
+    <DocCode Caption="DocItemModel.cs" Code="@DocSnippets.MinimalModel" />
+    <DocCode Caption="Items.razor" Code="@DocSnippets.MinimalPage" />
+
+    <DocNote Label="What you get without any settings">
+        Click a header to sort, use the pager, and pick visible columns with the sliders button. Every change asks
+        <code>FetchPageAsync</code> for exactly one page.
+    </DocNote>
+</DocSection>
+
+@code {
+    private static readonly DocRow[] Dependencies =
+    [
+        new("Maviray.Blazor.Components.Pro.Grid.UI", "NuGet (.csproj)", "", "The MaviGrid component. Brings the grid core (models, attributes, IGridDataFactory) and the Material components."),
+        new("Maviray.Blazor.Components.Pro.Grid.EntityFramework", "NuGet (.csproj)", "", "Reads grid pages with EF Core. Not needed when your own code loads the pages (section 15)."),
+        new("AddMaviComponents()", "Program.cs", "", "Registers the options every Mavi component injects. Without it the grid's buttons and dialog fail to render."),
+        new("AddDbContextFactory<TDbContext>()", "Program.cs", "", "The EF data source opens a short-lived context for each query. Grids fetch at the same time, so a single scoped DbContext isn't enough."),
+        new("AddMaviGrid()", "Program.cs", "", "Registers IGridDataFactory<TDataItem, TModel, TKey> for any entity and model, and the grid options."),
+        new(".AddEntityFrameworkDataSource<TDbContext>()", "Program.cs", "", "Tells the factory how to count and load rows: with EF Core, through that context."),
+        new("Grid and Material stylesheets, Lineicons, maviJsInterop.js", "App.razor <head>", "", "The grid's styles, the theme's colours, the icons, and the script that closes menus on a click elsewhere."),
+        new("Fonts (Lato, Montserrat)", "App.razor <head>", "", "Optional: the theme's fonts. Without them text uses system fonts."),
+        new("Interactive render mode", "App.razor or the page", "", "The grid only responds to clicks and typing when interactive (Server, WebAssembly or Auto)."),
+        new("@using namespaces", "_Imports.razor", "", "MaviGrid, MaviGridParameters, MaviGridQuery, MaviGridCollection, IGridDataFactory."),
+        new("IGridDataFactory<TDataItem, TModel, TKey>", "@inject in the page", "", "Builds each page: access checks, filters, count, the page's rows, cell formatting."),
+        new("A grid model class", "your code", "", "One property per column, with attributes (section 16).")
+    ];
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocItemModel, int> GridData { get; set; } = default!;
+
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        GridData.BuildPageAsync(query, cancellationToken: cancellationToken);
+}

@@ -4,6 +4,7 @@ using Maviray.Blazor.Components.Pro.Grid.EntityFramework.Extensions;
 using Maviray.Blazor.Components.Pro.Grid.Sample.Components;
 using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Context;
 using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Seeding;
+using Maviray.Blazor.Components.Pro.Grid.Sample.Models.Docs;
 using Maviray.Blazor.Components.Pro.Grid.Sample.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,6 +33,11 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample
             builder.Services.AddScoped<DemoAccessState>();
             builder.Services.AddScoped<DemoFetchLog>();
 
+            // The documentation page's demos: its access toggles, its audit list and its stand-in product service.
+            builder.Services.AddScoped<DocsAccessState>();
+            builder.Services.AddScoped<DocsAuditLog>();
+            builder.Services.AddScoped<ProductService>();
+
             builder.Services.AddMaviGrid()
                 // Every grid reads through EF Core with SampleDbContext.
                 .AddEntityFrameworkDataSource<SampleDbContext>()
@@ -40,7 +46,10 @@ namespace Maviray.Blazor.Components.Pro.Grid.Sample
                 // Decides access before every fetch; only the Access page's grid is its concern.
                 .AddAccessPolicy<DemoAccessPolicy>()
                 // Told which rows every fetch loaded, for the Access page's audit list.
-                .AddFetchObserver<DemoFetchObserver>();
+                .AddFetchObserver<DemoFetchObserver>()
+                // The documentation page's policy (row filter and hidden column) and audit observer.
+                .AddAccessPolicy<DocsAccessPolicy>()
+                .AddFetchObserver<DocsAuditObserver>();
 
             var app = builder.Build();
 

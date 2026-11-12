@@ -1,0 +1,28 @@
+@* A small tinted panel: what the live demo just did, or a tip. *@
+
+<div class="mt-4 rounded-md border px-4 py-3 @Tone">
+    @if (Label is not null)
+    {
+        <span class="font-semibold">@Label:</span>
+    }
+    @ChildContent
+</div>
+
+@code {
+    [Parameter]
+    public string? Label { get; set; }
+
+    /// <summary>Colour role of the panel: "info", "success" or "warning".</summary>
+    [Parameter]
+    public string Kind { get; set; } = "info";
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string Tone => Kind switch
+    {
+        "success" => "text-sm bg-(--theme-success-one) border-(--theme-success-three) text-(--theme-success-ten)",
+        "warning" => "text-sm bg-(--theme-warning-one) border-(--theme-warning-three) text-(--theme-dark-ten)",
+        _ => "text-sm bg-(--theme-info-one) border-(--theme-info-three) text-(--theme-info-ten)"
+    };
+}
