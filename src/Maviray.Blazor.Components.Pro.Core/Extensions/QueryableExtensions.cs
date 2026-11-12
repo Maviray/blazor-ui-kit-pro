@@ -21,6 +21,19 @@ public static class QueryableExtensions
     public static IOrderedQueryable<T> ThenByDynamic<T>(this IOrderedQueryable<T> source, string propertyPath, SortOrder sortOrder, object? nullDefault = null) =>
         Order(source, propertyPath, nullDefault, sortOrder == SortOrder.Ascending ? nameof(Queryable.ThenBy) : nameof(Queryable.ThenByDescending));
 
+    /// <summary>
+    /// Loads new <typeparamref name="T"/> instances holding only the members at <paramref name="paths"/> (dot-paths;
+    /// a path through a related item loads just that member of it, and a missing related item stays
+    /// <see langword="null"/>). With EF Core this selects only those columns. Apply it last, after ordering and paging.
+    /// </summary>
+    /// <exception cref="ArgumentException">A path doesn't name public members.</exception>
+    /// <exception cref="InvalidOperationException">A type on a path has no parameterless constructor, or a member can't be set.</exception>
+    public static IQueryable<T> SelectPaths<T>(this IQueryable<T> source, IEnumerable<string> paths) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return source.Select(GridProjectionBuilder<T>.For(paths));
+    }
+
     private static IOrderedQueryable<T> Order<T>(IQueryable<T> source, string propertyPath, object? nullDefault, string method)
     {
         ArgumentNullException.ThrowIfNull(source);

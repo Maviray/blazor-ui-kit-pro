@@ -23,6 +23,12 @@ public sealed class GridFetchOptions<TDataItem, TModel> where TDataItem : class
     public GridPropertyPathMap<TDataItem, TModel>? PropertyPathMap { get; init; }
 
     /// <summary>
+    /// When set, pages load only the visible columns' data item paths plus the members the projection lists, instead
+    /// of whole entities with their includes. See <see cref="GridProjection{TDataItem}"/> for what to list.
+    /// </summary>
+    public GridProjection<TDataItem>? Projection { get; init; }
+
+    /// <summary>
     /// Colour of each cell in a graphic column, keyed by column key. A resolver receives the cell's raw property
     /// value. Entries for columns that are not graphic are ignored.
     /// </summary>

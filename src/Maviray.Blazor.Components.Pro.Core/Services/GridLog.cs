@@ -15,4 +15,10 @@ internal static partial class GridLog
 
     [LoggerMessage(EventId = 4, Level = LogLevel.Debug, Message = "Grid sort on '{ColumnKey}' ignored for {DataItemType}: not a sortable column.")]
     public static partial void SortIgnored(ILogger logger, string columnKey, string dataItemType);
+
+    [LoggerMessage(EventId = 5, Level = LogLevel.Debug, Message = "Grid filter on '{ColumnKey}' of {DataItemType} matches no rows: its value doesn't fit the column's type.")]
+    public static partial void FilterValueRejected(ILogger logger, string columnKey, string dataItemType);
+
+    [LoggerMessage(EventId = 6, Level = LogLevel.Debug, Message = "Grid total of {DataItemType} known to the grid ({KnownTotalRows}) no longer matches the page; counting again.")]
+    public static partial void TotalRowsStale(ILogger logger, string dataItemType, int knownTotalRows);
 }

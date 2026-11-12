@@ -20,8 +20,21 @@ public sealed record GridDataSourceQuery<TDataItem> where TDataItem : class
 
     public int Take { get; init; }
 
+    /// <summary>
+    /// For <see cref="IGridKeysetDataSource{TDataItem}"/>: load the <see cref="Take"/> rows after or before this
+    /// position instead of skipping <see cref="Skip"/> rows. A cursor the data source can't use is ignored.
+    /// </summary>
+    public Models.Grid.MaviGridCursor? Cursor { get; init; }
+
     /// <summary>Navigation paths to eager-load, possibly dotted (for example <c>"Order.Customer"</c>).</summary>
     public IReadOnlyCollection<string> IncludePaths { get; init; } = [];
+
+    /// <summary>
+    /// When set, load only these members (dot-paths) into new data items, after ordering and paging, for example with
+    /// <see cref="Extensions.QueryableExtensions.SelectPaths{T}"/>; <see cref="IncludePaths"/> is then empty. Keep
+    /// whatever else the data source needs, such as the order keys a cursor reads.
+    /// </summary>
+    public IReadOnlyCollection<string>? SelectPaths { get; init; }
 
     /// <summary>Shapes the root query before filtering, ordering and paging, in addition to <see cref="IncludePaths"/>.</summary>
     public GridIncludeConfigurator<TDataItem>? Include { get; init; }

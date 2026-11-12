@@ -42,6 +42,9 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
     private SortOrder _sortOrder;
 
     private MaviGridCollection<TKey>? _page;
+    private MaviGridQuery? _pageQuery;
+    private MaviGridQuery? _appliedQuery;
+    private PersistingComponentStateSubscription? _persisting;
     private IReadOnlyList<MaviGridColumn> _knownColumns = [];
     private IReadOnlyList<MaviGridColumn> _filterColumns = [];
     private Exception? _fetchError;
@@ -51,6 +54,7 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
     private CancellationTokenSource? _filterCts;
 
     private IReadOnlyList<IMaviContextMenuItem> _mainMenu = [];
+    private bool _mainMenuStale;
     private bool _mainMenuOpen;
     private int _openRowMenu = -1;
     private string _rowMenuStyle = string.Empty;
@@ -104,8 +108,24 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
     [Parameter]
     public RenderFragment? PrerenderContent { get; set; }
 
+    /// <summary>
+    /// When set, the page fetched while prerendering is stored under this key (unique among the grids on the page)
+    /// with <c>PersistentComponentState</c>, and the interactive grid starts from it instead of fetching it again: one
+    /// query and one audit entry per page view, with the rows shown at once.
+    /// </summary>
+    /// <remarks>
+    /// The page is reused only for the same initial query (page, size, sort). Its row actions come back as
+    /// <see cref="MaviRowContextMenuItem{TKey}"/> with the same values. Like the prerendered HTML, the stored page
+    /// reaches the browser, so it holds nothing the user couldn't already see.
+    /// </remarks>
+    [Parameter]
+    public string? PrerenderedPageKey { get; set; }
+
     [Inject]
     private IJSRuntime JsRuntime { get; set; } = default!;
+
+    [Inject]
+    private IServiceProvider ServiceProvider { get; set; } = default!;
 
     /// <summary>Keys of the selected rows, kept across pages.</summary>
     public IReadOnlyCollection<TKey> SelectedKeys => _selectedKeys;
@@ -137,8 +157,8 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
         }
     }
 
-    /// <summary>Fetches the current page again and rebuilds the header menu.</summary>
-    public Task RefreshAsync() => FetchAsync(rebuildMainMenu: true);
+    /// <summary>Fetches the current page again, counting the rows afresh, and rebuilds the header menu.</summary>
+    public Task RefreshAsync() => FetchAsync(rebuildMainMenu: true, recount: true);
 
     public void ClearSelection()
     {
@@ -177,6 +197,12 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
 
     protected override async Task OnInitializedAsync()
     {
+        if (TryRestorePrerenderedPage())
+        {
+            await RebuildMainMenuIfStaleAsync();
+            return;
+        }
+
         if (!Parameters.FetchWhilePrerendering && !RendererInfo.IsInteractive)
         {
             _prerenderSkipped = true;
@@ -185,6 +211,44 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
         }
 
         await FetchAsync(rebuildMainMenu: true);
+    }
+
+    /// <summary>
+    /// While prerendering, arranges for the fetched page to be stored; once interactive, starts from the stored page
+    /// when it answers the initial query. Returns whether it did.
+    /// </summary>
+    private bool TryRestorePrerenderedPage()
+    {
+        if (PrerenderedPageKey is not { } key || ServiceProvider.GetService(typeof(PersistentComponentState)) is not PersistentComponentState state)
+        {
+            return false;
+        }
+
+        if (!RendererInfo.IsInteractive)
+        {
+            _persisting = state.RegisterOnPersisting(() =>
+            {
+                // A failed fetch leaves no page: the interactive grid fetches again.
+                if (_page is not null && _appliedQuery is not null)
+                {
+                    state.PersistAsJson(key, MaviGridPersistedPage<TKey>.From(_page, _appliedQuery));
+                }
+
+                return Task.CompletedTask;
+            });
+
+            return false;
+        }
+
+        if (!state.TryTakeFromJson<MaviGridPersistedPage<TKey>>(key, out var persisted) || persisted is null || !persisted.Answers(BuildQuery(recount: false)))
+        {
+            return false;
+        }
+
+        ApplyPage(persisted.ToCollection(), persisted.Query);
+        _busy = false;
+        _mainMenuStale = true;
+        return true;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -215,14 +279,25 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
         }
     }
 
-    private async Task FetchAsync(bool rebuildMainMenu = false)
+    /// <param name="rebuildMainMenu">Rebuild the header menu once a fetch completes.</param>
+    /// <param name="recount">Send no known total, so the fetch code counts the rows again.</param>
+    private async Task FetchAsync(bool rebuildMainMenu = false, bool recount = false)
     {
+        // A filter pause can end just before disposal; a grid no one sees mustn't query (or be audited).
+        if (_disposed)
+        {
+            return;
+        }
+
+        // Kept until a fetch completes, so a newer fetch that supersedes a refresh still rebuilds the menu.
+        _mainMenuStale |= rebuildMainMenu;
+
         var cts = new CancellationTokenSource();
         var superseded = _fetchCts;
         _fetchCts = cts;
         superseded?.Cancel();
 
-        var query = BuildQuery();
+        var query = BuildQuery(recount);
         _busy = true;
 
         if (HasRendered)
@@ -239,16 +314,19 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
                 return;
             }
 
-            ApplyPage(page);
+            ApplyPage(page, query);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
-            // The grid cancelled this fetch: a newer one started or the grid was disposed.
+            // The grid cancelled this fetch: a newer one started (and finishes the work) or the grid was disposed.
+            return;
         }
         catch (Exception ex) when (!cts.IsCancellationRequested)
         {
             Logger?.LogError(ex, "Grid fetch failed.");
             _page = null;
+            _pageQuery = null;
+            _appliedQuery = null;
             _fetchError = ex;
             _layoutDirty = true;
 
@@ -277,15 +355,21 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
             cts.Dispose();
         }
 
-        // The menu is the app's own callback: its failures are the app's, not a fetch error.
-        if (rebuildMainMenu && ConstructMainContextMenu is not null && !_disposed)
+        await RebuildMainMenuIfStaleAsync();
+    }
+
+    // The menu is the app's own callback: its failures are the app's, not a fetch error.
+    private async Task RebuildMainMenuIfStaleAsync()
+    {
+        if (_mainMenuStale && ConstructMainContextMenu is not null && !_disposed)
         {
+            _mainMenuStale = false;
             _mainMenu = [.. await ConstructMainContextMenu()];
             StateHasChanged();
         }
     }
 
-    private void ApplyPage(MaviGridCollection<TKey> page)
+    private void ApplyPage(MaviGridCollection<TKey> page, MaviGridQuery query)
     {
         if (!ReferenceEquals(_knownColumns, page.Columns) || _page?.AccessDenied != page.AccessDenied)
         {
@@ -293,6 +377,8 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
         }
 
         _page = page;
+        _appliedQuery = query;
+        _pageQuery = page.AccessDenied ? null : query;
         _knownColumns = page.Columns;
 
         // A denied page's columns aren't filterable; keep resolving typed filters against the last allowed columns.
@@ -315,14 +401,41 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
         }
     }
 
-    private MaviGridQuery BuildQuery() => new()
+    private MaviGridQuery BuildQuery(bool recount)
     {
-        PageNumber = _pageNumber,
-        PageSize = _pageSize,
-        SortColumnKey = _sortColumnKey,
-        SortOrder = _sortOrder,
-        Filters = ResolveFilters()
-    };
+        var filters = ResolveFilters();
+
+        // The count depends only on the filters: a page, page size or sort change keeps it.
+        var sameRows = !recount && _pageQuery is not null && _page is not null && filters.SequenceEqual(_pageQuery.Filters);
+
+        // A cursor is a position in one order of one row set; page 1 is as fast to skip to as to seek.
+        var sameOrder = sameRows && _pageQuery!.PageSize == _pageSize && _pageQuery.SortColumnKey == _sortColumnKey && _pageQuery.SortOrder == _sortOrder;
+
+        MaviGridCursor? cursor = null;
+
+        if (sameOrder && _pageNumber > 1)
+        {
+            if (_pageNumber == _page!.PageNumber + 1 && _page.NextPageCursor is { } next)
+            {
+                cursor = new MaviGridCursor(next, MaviGridCursorDirection.Next);
+            }
+            else if (_pageNumber == _page.PageNumber - 1 && _page.PreviousPageCursor is { } previous)
+            {
+                cursor = new MaviGridCursor(previous, MaviGridCursorDirection.Previous);
+            }
+        }
+
+        return new MaviGridQuery
+        {
+            PageNumber = _pageNumber,
+            PageSize = _pageSize,
+            SortColumnKey = _sortColumnKey,
+            SortOrder = _sortOrder,
+            Filters = filters,
+            KnownTotalRows = sameRows ? _page!.TotalRows : null,
+            Cursor = cursor
+        };
+    }
 
     private MaviGridColumnFilter[] ResolveFilters()
     {
@@ -484,7 +597,7 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
     {
         _filterText.Clear();
         _pageNumber = 1;
-        return FetchAsync();
+        return FetchAsync(recount: true);
     }
 
     private void ToggleMainMenu()
@@ -599,6 +712,7 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
         }
 
         _disposed = true;
+        _persisting?.Dispose();
         _fetchCts?.Cancel();
         _filterCts?.Cancel();
         _filterCts?.Dispose();

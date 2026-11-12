@@ -323,4 +323,48 @@ public class MaviGridFetchStateTests : MaviGridTestContext
         // JS interop calls back on the renderer's dispatcher.
         Assert.Null(await Record.ExceptionAsync(() => Renderer.Dispatcher.InvokeAsync(() => instance.HandleOutsideClick("elsewhere"))));
     }
+
+    [Fact]
+    public async Task RefreshSupersededByANewerFetch_StillRebuildsTheMainMenu()
+    {
+        var menuTitle = "Menu v1";
+        var gate = new TaskCompletionSource();
+        var calls = 0;
+        var grid = RenderGrid(
+            async (q, _) =>
+            {
+                // The refresh (call 2) ignores its token and finishes after the newer fetch, as a slow query would.
+                if (++calls == 2)
+                {
+                    await gate.Task;
+                }
+
+                return GridPages.PageOf(q, 30, 1);
+            },
+            configure: b => b.Add(
+                x => x.ConstructMainContextMenu,
+                () => Task.FromResult<IEnumerable<Core.Interfaces.IMaviContextMenuItem>>([new MaviContextMenuItem { Title = menuTitle }])));
+
+        menuTitle = "Menu v2";
+        var refresh = grid.InvokeAsync(() => grid.Instance.RefreshAsync());
+        grid.Find("[data-sort-key='Name']").Click();
+        await grid.InvokeAsync(gate.SetResult);
+        await refresh;
+
+        Assert.Equal(3, calls);
+        Assert.Contains("Menu v2", grid.Markup);
+    }
+
+    [Fact]
+    public async Task FetchRequestedAfterDisposal_DoesNotCallFetchData()
+    {
+        var fetch = new RecordingFetch(1);
+        var grid = RenderGrid(fetch.Invoke);
+        var instance = grid.Instance;
+
+        await DisposeComponentsAsync();
+        await Renderer.Dispatcher.InvokeAsync(instance.RefreshAsync);
+
+        Assert.Single(fetch.Queries);
+    }
 }

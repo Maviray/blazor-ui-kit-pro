@@ -2,6 +2,7 @@ using Mapster;
 using Maviray.Blazor.Components.Pro.Core.Attributes.Grid;
 using Maviray.Blazor.Components.Pro.Core.Enums.Grid;
 using Maviray.Blazor.Components.Pro.Core.Models.Grid;
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
@@ -23,14 +24,12 @@ internal sealed class GridModelMetadata<TDataItem, TModel>
 {
     private static readonly Lazy<GridModelMetadata<TDataItem, TModel>> LazyInstance = new(() => new GridModelMetadata<TDataItem, TModel>());
 
-    private readonly FrozenDictionary<string, int> _indexByKey;
     private readonly GridColumnSet _unmapped;
     private readonly ConditionalWeakTable<GridPropertyPathMap<TDataItem, TModel>, GridColumnSet> _mapped = new();
 
     private GridModelMetadata()
     {
         (Descriptors, IncludePaths) = Discover();
-        _indexByKey = Descriptors.Select((d, i) => (d.Key, i)).ToFrozenDictionary(x => x.Key, x => x.i, StringComparer.Ordinal);
         DeniedColumns = Descriptors.Select((d, i) => d.ToColumn(i, resolvable: false)).ToArray();
         _unmapped = BuildColumnSet(null);
         MapToModel = BuildMapping();
@@ -62,7 +61,7 @@ internal sealed class GridModelMetadata<TDataItem, TModel>
             columns[i] = Descriptors[i].ToColumn(i, resolvable: paths[i] is not null);
         }
 
-        return new GridColumnSet(columns, paths, _indexByKey);
+        return new GridColumnSet(columns, paths, [.. Enumerable.Range(0, Descriptors.Count)]);
     }
 
     private static GridPropertyPath? Resolve(string key, GridPropertyPathMap<TDataItem, TModel>? map)
@@ -179,15 +178,39 @@ internal sealed class GridModelMetadata<TDataItem, TModel>
     }
 }
 
-/// <summary>The columns built for one path map, with the data item path each column sorts and filters by.</summary>
-internal sealed class GridColumnSet(IReadOnlyList<MaviGridColumn> columns, GridPropertyPath?[] paths, FrozenDictionary<string, int> indexByKey)
+/// <summary>
+/// The columns built for one path map (less any hidden columns), with the data item path each column sorts and filters
+/// by and the descriptor that formats its cells.
+/// </summary>
+internal sealed class GridColumnSet
 {
-    public IReadOnlyList<MaviGridColumn> Columns => columns;
+    private readonly GridPropertyPath?[] _paths;
+    private readonly int[] _descriptorIndexes;
+    private readonly FrozenDictionary<string, int> _positionByKey;
+
+    // Policies hide the same few column sets again and again; one list per set keeps the grid's layout from rebuilding.
+    private readonly ConcurrentDictionary<string, GridColumnSet> _withHidden = new(StringComparer.Ordinal);
+
+    public GridColumnSet(IReadOnlyList<MaviGridColumn> columns, GridPropertyPath?[] paths, int[] descriptorIndexes)
+    {
+        Columns = columns;
+        _paths = paths;
+        _descriptorIndexes = descriptorIndexes;
+        _positionByKey = columns.Select((c, i) => (c.Key, i)).ToFrozenDictionary(x => x.Key, x => x.i, StringComparer.Ordinal);
+    }
+
+    public IReadOnlyList<MaviGridColumn> Columns { get; }
+
+    /// <summary>For each column, in order, the index of the descriptor that reads and formats its cells.</summary>
+    public IReadOnlyList<int> DescriptorIndexes => _descriptorIndexes;
+
+    /// <summary>The data item paths of the columns that have one.</summary>
+    public IEnumerable<GridPropertyPath> Paths => _paths.OfType<GridPropertyPath>();
 
     /// <summary>Finds the path of a sortable and filterable column; false for unknown keys and columns without a path.</summary>
     public bool TryGetPath(string? columnKey, [NotNullWhen(true)] out GridPropertyPath? path)
     {
-        if (columnKey is not null && indexByKey.TryGetValue(columnKey, out var index) && paths[index] is { } resolved)
+        if (columnKey is not null && _positionByKey.TryGetValue(columnKey, out var index) && _paths[index] is { } resolved)
         {
             path = resolved;
             return true;
@@ -195,6 +218,29 @@ internal sealed class GridColumnSet(IReadOnlyList<MaviGridColumn> columns, GridP
 
         path = null;
         return false;
+    }
+
+    /// <summary>The set without <paramref name="hiddenColumns"/>, re-indexed; this set when none of them is a column.</summary>
+    public GridColumnSet Without(IReadOnlyCollection<string>? hiddenColumns)
+    {
+        if (hiddenColumns is null || hiddenColumns.Count == 0)
+        {
+            return this;
+        }
+
+        var hidden = hiddenColumns.Where(_positionByKey.ContainsKey).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+
+        return hidden.Length == 0 ? this : _withHidden.GetOrAdd(string.Join('\u001f', hidden), _ => Filter(hidden.ToHashSet(StringComparer.Ordinal)));
+    }
+
+    private GridColumnSet Filter(HashSet<string> hidden)
+    {
+        var keep = Enumerable.Range(0, Columns.Count).Where(i => !hidden.Contains(Columns[i].Key)).ToArray();
+
+        return new GridColumnSet(
+            keep.Select((i, position) => Columns[i].WithIndex(position)).ToArray(),
+            keep.Select(i => _paths[i]).ToArray(),
+            keep.Select(i => _descriptorIndexes[i]).ToArray());
     }
 }
 

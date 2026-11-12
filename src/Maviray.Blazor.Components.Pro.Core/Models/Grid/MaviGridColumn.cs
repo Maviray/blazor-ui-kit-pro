@@ -36,6 +36,23 @@ public sealed class MaviGridColumn
 
     /// <summary>The members of an enum column in declaration order, with the text shown for each.</summary>
     public IReadOnlyList<MaviGridEnumOption> EnumOptions { get; init; } = [];
+
+    /// <summary>The same column at another position, when other columns are left out of the page.</summary>
+    internal MaviGridColumn WithIndex(int index) => new()
+    {
+        Key = Key,
+        Title = Title,
+        Index = index,
+        Sequence = Sequence,
+        PropertyType = PropertyType,
+        CellBehavior = CellBehavior,
+        GraphicDisplay = GraphicDisplay,
+        Sortable = Sortable,
+        Filterable = Filterable,
+        TrueText = TrueText,
+        FalseText = FalseText,
+        EnumOptions = EnumOptions
+    };
 }
 
 /// <summary>An enum member: its <see cref="Name"/> (used in filters) and the <see cref="Text"/> shown in cells.</summary>

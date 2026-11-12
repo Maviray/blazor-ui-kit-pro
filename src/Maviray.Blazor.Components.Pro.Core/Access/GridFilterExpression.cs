@@ -43,6 +43,36 @@ public static class GridFilterExpression
         return Expression.Lambda(typeof(Func<,>).MakeGenericType(dataItemType, typeof(bool)), body, dataItemParameter);
     }
 
+    /// <summary>
+    /// Rebinds a predicate over a base class or an interface to <paramref name="dataItemType"/>, a type derived from
+    /// (or implementing) it. Member access on the parameter targets the data item directly, so EF Core translates it.
+    /// </summary>
+    internal static LambdaExpression ForSubtype(Type dataItemType, LambdaExpression filter)
+    {
+        var baseParameter = filter.Parameters[0];
+
+        if (baseParameter.Type.IsInterface)
+        {
+            return ForInterface(dataItemType, filter);
+        }
+
+        var dataItemParameter = Expression.Parameter(dataItemType, baseParameter.Name);
+        var body = new SubtypeRebinder(baseParameter, dataItemParameter).Visit(filter.Body);
+
+        return Expression.Lambda(typeof(Func<,>).MakeGenericType(dataItemType, typeof(bool)), body, dataItemParameter);
+    }
+
+    private sealed class SubtypeRebinder(ParameterExpression baseParameter, ParameterExpression dataItemParameter) : ExpressionVisitor
+    {
+        // x.Prop: a base class member is a member of the derived type too.
+        protected override Expression VisitMember(MemberExpression node) =>
+            node.Expression == baseParameter ? Expression.MakeMemberAccess(dataItemParameter, node.Member) : base.VisitMember(node);
+
+        // Any other use of the parameter keeps its base type, so the rest of the tree stays valid.
+        protected override Expression VisitParameter(ParameterExpression node) =>
+            node == baseParameter ? Expression.Convert(dataItemParameter, baseParameter.Type) : base.VisitParameter(node);
+    }
+
     private sealed class InterfaceRebinder(ParameterExpression interfaceParameter, ParameterExpression dataItemParameter) : ExpressionVisitor
     {
         protected override Expression VisitMember(MemberExpression node)

@@ -23,6 +23,41 @@ public class GridDataFactoryFilterTests
         Assert.Equal([10, 11, 12], page.Rows.Select(r => r.Key));
     }
 
+    [Theory]
+    [InlineData("Id", "99999999999")]
+    [InlineData("Id", "-99999999999")]
+    [InlineData("Id", "abc")]
+    [InlineData("CreatedOn", "2026-13-45")]
+    public async Task FilterValueTheColumnTypeCannotHold_MatchesNoRows(string columnKey, string value)
+    {
+        var source = new FakeGridDataSource(TestFactory.Orders(3));
+
+        var page = await TestFactory.Create(source).BuildPageAsync(Filtered(columnKey, MaviGridFilterCriteria.Equals, value), cancellationToken: Ct);
+
+        Assert.Equal(0, page.TotalRows);
+        Assert.Empty(page.Rows);
+        Assert.False(page.AccessDenied);
+    }
+
+    [Fact]
+    public async Task FilterValueTheColumnTypeCannotHold_StillAppliesTheOtherFilters()
+    {
+        var source = new FakeGridDataSource(TestFactory.Orders(3));
+        var query = new MaviGridQuery
+        {
+            Filters =
+            [
+                new MaviGridColumnFilter("Id", MaviGridFilterCriteria.Equals, "99999999999"),
+                new MaviGridColumnFilter("Name", MaviGridFilterCriteria.Contains, "Order")
+            ]
+        };
+
+        var page = await TestFactory.Create(source).BuildPageAsync(query, cancellationToken: Ct);
+
+        Assert.Equal(0, page.TotalRows);
+        Assert.NotNull(source.LastCountQuery!.Filter);
+    }
+
     [Fact]
     public async Task FilterOnAPropertyThatIsNotAColumn_IsIgnored()
     {

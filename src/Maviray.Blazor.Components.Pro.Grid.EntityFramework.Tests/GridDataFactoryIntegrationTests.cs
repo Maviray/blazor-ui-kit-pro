@@ -73,6 +73,41 @@ public sealed class GridDataFactoryIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task NextPage_WithTheGridsHints_RunsOneSeekQuery_WithNoCountAndNoOffset()
+    {
+        var first = await Fetch(new MaviGridQuery { PageSize = 10, SortColumnKey = "Category" });
+        _db.ClearCommands();
+
+        // What the grid sends when the user clicks "next" on that page.
+        var second = await Fetch(new MaviGridQuery
+        {
+            PageNumber = 2,
+            PageSize = 10,
+            SortColumnKey = "Category",
+            KnownTotalRows = first.TotalRows,
+            Cursor = new MaviGridCursor(first.NextPageCursor!, MaviGridCursorDirection.Next)
+        });
+
+        var command = Assert.Single(_db.Commands);
+        Assert.DoesNotContain("COUNT", command.Sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("OFFSET", command.Sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(10, second.Rows.Count);
+        Assert.Empty(first.Rows.Select(r => r.Key).Intersect(second.Rows.Select(r => r.Key)));
+        Assert.Equal((2, 30), (second.PageNumber, second.TotalRows));
+        Assert.NotNull(second.NextPageCursor);
+        Assert.NotNull(second.PreviousPageCursor);
+    }
+
+    [Fact]
+    public async Task NumberFilterOutOfTheColumnTypesRange_MatchesNoRows()
+    {
+        var page = await Fetch(new MaviGridQuery { Filters = [new MaviGridColumnFilter("Id", MaviGridFilterCriteria.Equals, "99999999999")] });
+
+        Assert.Empty(page.Rows);
+        Assert.Equal(0, page.TotalRows);
+    }
+
+    [Fact]
     public async Task ContainsFilter_IsSentAsAParameter_NotAsALiteral()
     {
         var page = await Fetch(new MaviGridQuery { Filters = [new MaviGridColumnFilter("Name", MaviGridFilterCriteria.Contains, "ra-2")] });

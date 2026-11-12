@@ -54,6 +54,20 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
+    public void AddMaviGrid_MaxPageSizeBelowOne_FailsWhenTheAppStarts()
+    {
+        var services = new ServiceCollection();
+        services.AddMaviGrid(o => o.MaxPageSize = 0);
+
+        using var provider = services.BuildServiceProvider();
+
+        // The generic host runs the startup validator before the app serves its first request.
+        var validator = provider.GetService<IStartupValidator>();
+        Assert.NotNull(validator);
+        Assert.Throws<OptionsValidationException>(validator.Validate);
+    }
+
+    [Fact]
     public void Builder_RegistrationsByType_AreScopedAndRegisteredOnce()
     {
         var services = new ServiceCollection();

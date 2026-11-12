@@ -10,7 +10,7 @@ namespace Maviray.Blazor.Components.Pro.Core.Tests.Fixtures;
 internal static class TestFactory
 {
     public static GridDataFactory<TestOrder, TestOrderGridModel, int> Create(
-        FakeGridDataSource source,
+        IGridDataSource<TestOrder> source,
         IEnumerable<IGridAccessPolicy>? policies = null,
         IEnumerable<IGridFetchObserver>? observers = null,
         IEnumerable<IGridGlobalFilterProvider>? globalFilters = null,

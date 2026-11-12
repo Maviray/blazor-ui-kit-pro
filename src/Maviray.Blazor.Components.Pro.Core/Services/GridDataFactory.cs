@@ -1,4 +1,3 @@
-using Maviray.Blazor.Components.Core.Enums;
 using Maviray.Blazor.Components.Pro.Core.Access;
 using Maviray.Blazor.Components.Pro.Core.Interfaces;
 using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid;
@@ -63,36 +62,55 @@ public sealed class GridDataFactory<TDataItem, TModel, TKey> : IGridDataFactory<
             return await DenyAsync(request, access.DeniedMessage, metadata, pageSize, cancellationToken).ConfigureAwait(false);
         }
 
-        var columns = metadata.ColumnsFor(options?.PropertyPathMap);
+        // Hidden columns are gone from here on: their keys can't sort, filter or be formatted.
+        var columns = metadata.ColumnsFor(options?.PropertyPathMap).Without(access.HiddenColumns);
         var sort = ResolveSort(query, columns);
+
+        // A projection loads the visible columns' paths and the members the model reads, so no navigation is included whole.
+        var selectPaths = options?.Projection is { } projection ? columns.Paths.Select(p => p.DataItemPath).Concat(projection.Paths).Distinct(StringComparer.Ordinal).ToArray() : null;
 
         var dataSourceQuery = new GridDataSourceQuery<TDataItem>
         {
             Filter = CombineFilters(query, options, columns, access.RowFilters),
             Sort = sort,
-            IncludePaths = metadata.IncludePaths,
+            IncludePaths = selectPaths is null ? metadata.IncludePaths : [],
+            SelectPaths = selectPaths,
             Include = options?.Include
         };
 
-        var totalRows = await _dataSource.CountAsync(dataSourceQuery, cancellationToken).ConfigureAwait(false);
-        var totalPages = (int)((totalRows + (long)pageSize - 1) / pageSize);
-        var pageNumber = Math.Clamp(query.PageNumber, 1, Math.Max(totalPages, 1));
+        // A zero total is always counted: nothing would be loaded for it, so added rows could never show up.
+        var knownTotal = _options.ReuseTotalRows && query.KnownTotalRows > 0 ? query.KnownTotalRows : null;
+        var totalRows = knownTotal ?? await _dataSource.CountAsync(dataSourceQuery, cancellationToken).ConfigureAwait(false);
+        var pageNumber = ClampPage(query.PageNumber, totalRows, pageSize);
 
-        IReadOnlyList<TDataItem> items = totalRows == 0
-            ? []
-            : await _dataSource.GetPageAsync(dataSourceQuery with { Skip = (pageNumber - 1) * pageSize, Take = pageSize }, cancellationToken).ConfigureAwait(false);
+        // The cursor leads to the requested page; once that page is clamped away, only skipping gets there.
+        var cursor = pageNumber == query.PageNumber ? query.Cursor : null;
+        var loaded = await LoadPageAsync(dataSourceQuery, cursor, pageNumber, pageSize, totalRows, cancellationToken).ConfigureAwait(false);
 
-        var page = new MaviGridCollection<TKey>
+        if (knownTotal is not null && loaded.Items.Count != RowsOnPage(totalRows, pageNumber, pageSize))
         {
-            Columns = columns.Columns,
-            Rows = BuildRows(items, metadata, options?.CellThemes),
-            PageNumber = pageNumber,
-            PageSize = pageSize,
-            TotalRows = totalRows,
-            TotalPages = totalPages,
-            SortColumnKey = sort is null ? null : query.SortColumnKey,
-            SortOrder = query.SortOrder
-        };
+            // Rows were added or removed since the grid's count: count again, and move to the last page if this one is gone.
+            GridLog.TotalRowsStale(_logger, DataItemName, knownTotal.Value);
+            totalRows = await _dataSource.CountAsync(dataSourceQuery, cancellationToken).ConfigureAwait(false);
+            var clamped = ClampPage(query.PageNumber, totalRows, pageSize);
+
+            if (clamped != pageNumber)
+            {
+                pageNumber = clamped;
+                loaded = await LoadPageAsync(dataSourceQuery, cursor: null, pageNumber, pageSize, totalRows, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        var totalPages = TotalPages(totalRows, pageSize);
+        var page = GridPageBuilder<TDataItem, TModel, TKey>.Build(
+            new GridLoadedPage<TDataItem>(loaded.Items, pageNumber, pageSize, totalRows)
+            {
+                NextPageCursor = pageNumber < totalPages ? loaded.LastRowCursor : null,
+                PreviousPageCursor = pageNumber > 1 ? loaded.FirstRowCursor : null,
+                HiddenColumns = access.HiddenColumns
+            },
+            query,
+            options);
 
         GridLog.PageLoaded(_logger, DataItemName, pageNumber, page.Rows.Count, totalRows);
         await NotifyRowsLoadedAsync(request, page, cancellationToken).ConfigureAwait(false);
@@ -100,34 +118,64 @@ public sealed class GridDataFactory<TDataItem, TModel, TKey> : IGridDataFactory<
         return page;
     }
 
+    private static readonly GridKeysetPage<TDataItem> NoRows = new([], null, null);
+
+    // A keyset data source seeks from the cursor and returns the cursors of the page's edge rows; any other skips.
+    private async Task<GridKeysetPage<TDataItem>> LoadPageAsync(
+        GridDataSourceQuery<TDataItem> query, MaviGridCursor? cursor, int pageNumber, int pageSize, int totalRows, CancellationToken cancellationToken)
+    {
+        if (totalRows == 0)
+        {
+            return NoRows;
+        }
+
+        var pageQuery = query with { Skip = (pageNumber - 1) * pageSize, Take = pageSize };
+
+        return _dataSource is IGridKeysetDataSource<TDataItem> keyset
+            ? await keyset.GetKeysetPageAsync(pageQuery with { Cursor = cursor }, cancellationToken).ConfigureAwait(false)
+            : new GridKeysetPage<TDataItem>(await _dataSource.GetPageAsync(pageQuery, cancellationToken).ConfigureAwait(false), null, null);
+    }
+
+    private static int TotalPages(int totalRows, int pageSize) => (int)((totalRows + (long)pageSize - 1) / pageSize);
+
+    private static int ClampPage(int requested, int totalRows, int pageSize) => Math.Clamp(requested, 1, Math.Max(TotalPages(totalRows, pageSize), 1));
+
+    private static int RowsOnPage(int totalRows, int pageNumber, int pageSize) => Math.Clamp(totalRows - (pageNumber - 1) * pageSize, 0, pageSize);
+
     private async ValueTask<AccessResult> EvaluateAccessAsync(GridAccessRequest request, CancellationToken cancellationToken)
     {
         var allowed = false;
         List<Expression<Func<TDataItem, bool>>>? rowFilters = null;
+        HashSet<string>? hiddenColumns = null;
 
         foreach (var policy in _policies)
         {
             var decision = await policy.EvaluateAsync<TDataItem>(request, cancellationToken).ConfigureAwait(false)
                 ?? throw new InvalidOperationException($"Grid access policy '{policy.GetType().FullName}' returned no decision for '{typeof(TDataItem).FullName}'.");
 
-            switch (decision.Outcome)
+            if (decision.Outcome == GridAccessOutcome.Denied)
             {
-                case GridAccessOutcome.Denied:
-                    return AccessResult.Deny(decision.DeniedMessage);
+                return AccessResult.Deny(decision.DeniedMessage);
+            }
 
-                case GridAccessOutcome.Allowed:
-                    allowed = true;
+            // Not-applicable decisions may hide columns too, without allowing any rows.
+            if (decision.HiddenColumns.Count > 0)
+            {
+                (hiddenColumns ??= new HashSet<string>(StringComparer.Ordinal)).UnionWith(decision.HiddenColumns);
+            }
 
-                    if (decision.RowFilter is not null)
-                    {
-                        (rowFilters ??= []).Add(decision.RowFilter);
-                    }
+            if (decision.Outcome == GridAccessOutcome.Allowed)
+            {
+                allowed = true;
 
-                    break;
+                if (decision.RowFilter is not null)
+                {
+                    (rowFilters ??= []).Add(decision.RowFilter);
+                }
             }
         }
 
-        return !allowed && _options.RequireExplicitAllow ? AccessResult.Deny(null) : AccessResult.Allow(rowFilters);
+        return !allowed && _options.RequireExplicitAllow ? AccessResult.Deny(null) : AccessResult.Allow(rowFilters, hiddenColumns);
     }
 
     private async Task<MaviGridCollection<TKey>> DenyAsync(
@@ -177,7 +225,7 @@ public sealed class GridDataFactory<TDataItem, TModel, TKey> : IGridDataFactory<
         {
             if (columns.TryGetPath(filter.ColumnKey, out var path))
             {
-                predicates.Add(GridFilterBuilder<TDataItem>.Build(path.DataItemPath, filter.Criteria, filter.Value, path.NullDefault));
+                predicates.Add(BuildColumnFilter(filter, path));
             }
             else
             {
@@ -206,56 +254,22 @@ public sealed class GridDataFactory<TDataItem, TModel, TKey> : IGridDataFactory<
         return PredicateCombiner.AndAll(predicates);
     }
 
-    private static MaviGridRow<TKey>[] BuildRows(
-        IReadOnlyList<TDataItem> items,
-        GridModelMetadata<TDataItem, TModel> metadata,
-        IReadOnlyDictionary<string, Func<object?, ThemeColorScheme>>? cellThemes)
+    // A value the property's type can't hold (an int column given 99999999999, a date column given "2026-13-45")
+    // matches no row, rather than failing the fetch on every keystroke.
+    private Expression<Func<TDataItem, bool>> BuildColumnFilter(MaviGridColumnFilter filter, GridPropertyPath path)
     {
-        var descriptors = metadata.Descriptors;
-        var rows = new MaviGridRow<TKey>[items.Count];
-
-        for (var r = 0; r < items.Count; r++)
+        try
         {
-            var item = items[r];
-            var model = metadata.MapToModel(item);
-            model.ConstructFrom(item);
-
-            var cells = new MaviGridCell[descriptors.Count];
-
-            for (var c = 0; c < descriptors.Count; c++)
-            {
-                var descriptor = descriptors[c];
-
-                if (!descriptor.TryGetValue(model, out var value))
-                {
-                    cells[c] = MaviGridCell.Empty;
-                    continue;
-                }
-
-                var theme = descriptor.GraphicDisplay && cellThemes is not null && cellThemes.TryGetValue(descriptor.Key, out var resolve)
-                    ? resolve(value)
-                    : default;
-
-                cells[c] = new MaviGridCell(descriptor.Format(value), theme);
-            }
-
-            var actions = model.GetContextActions();
-
-            rows[r] = new MaviGridRow<TKey>
-            {
-                Key = model.Key,
-                Cells = cells,
-                ContextActions = actions switch
-                {
-                    null => [],
-                    IReadOnlyList<IMaviRowContextMenuItem<TKey>> list => list,
-                    _ => actions.ToArray()
-                }
-            };
+            return GridFilterBuilder<TDataItem>.Build(path.DataItemPath, filter.Criteria, filter.Value, path.NullDefault);
         }
-
-        return rows;
+        catch (FormatException)
+        {
+            GridLog.FilterValueRejected(_logger, filter.ColumnKey, DataItemName);
+            return MatchNothing;
+        }
     }
+
+    private static readonly Expression<Func<TDataItem, bool>> MatchNothing = _ => false;
 
     private async ValueTask NotifyRowsLoadedAsync(GridAccessRequest request, MaviGridCollection<TKey> page, CancellationToken cancellationToken)
     {
@@ -279,10 +293,12 @@ public sealed class GridDataFactory<TDataItem, TModel, TKey> : IGridDataFactory<
         }
     }
 
-    private readonly record struct AccessResult(bool Denied, string? DeniedMessage, IReadOnlyList<Expression<Func<TDataItem, bool>>>? RowFilters)
+    private readonly record struct AccessResult(
+        bool Denied, string? DeniedMessage, IReadOnlyList<Expression<Func<TDataItem, bool>>>? RowFilters, IReadOnlyCollection<string>? HiddenColumns)
     {
-        public static AccessResult Allow(IReadOnlyList<Expression<Func<TDataItem, bool>>>? rowFilters) => new(false, null, rowFilters);
+        public static AccessResult Allow(IReadOnlyList<Expression<Func<TDataItem, bool>>>? rowFilters, IReadOnlyCollection<string>? hiddenColumns) =>
+            new(false, null, rowFilters, hiddenColumns);
 
-        public static AccessResult Deny(string? message) => new(true, message, null);
+        public static AccessResult Deny(string? message) => new(true, message, null, null);
     }
 }

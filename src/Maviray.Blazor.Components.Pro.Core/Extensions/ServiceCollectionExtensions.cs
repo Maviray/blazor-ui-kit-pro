@@ -12,12 +12,14 @@ public static class ServiceCollectionExtensions
     /// Registers the grid data factory (scoped) and its options. Chain the returned builder to add a data source,
     /// access policies, fetch observers and global filters.
     /// </summary>
+    /// <remarks>Invalid options stop the app when the host starts, not on the first grid fetch.</remarks>
     public static MaviGridBuilder AddMaviGrid(this IServiceCollection services, Action<GridDataFactoryOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
         var options = services.AddOptions<GridDataFactoryOptions>()
-            .Validate(o => o.MaxPageSize >= 1, $"{nameof(GridDataFactoryOptions.MaxPageSize)} must be at least 1.");
+            .Validate(o => o.MaxPageSize >= 1, $"{nameof(GridDataFactoryOptions.MaxPageSize)} must be at least 1.")
+            .ValidateOnStart();
 
         if (configure is not null)
         {

@@ -31,6 +31,33 @@ public static class GridPages
         SortOrder = query.SortOrder
     };
 
+    /// <summary>
+    /// The requested page of <paramref name="totalRows"/> rows keyed 1..n, with keyset cursors "after-{last key}" and
+    /// "before-{first key}" (none past either end), as a keyset-paging fetch returns them.
+    /// </summary>
+    public static MaviGridCollection<int> WithCursors(MaviGridQuery query, int totalRows)
+    {
+        var totalPages = (totalRows + query.PageSize - 1) / query.PageSize;
+        var pageNumber = Math.Clamp(query.PageNumber, 1, Math.Max(totalPages, 1));
+        var first = (pageNumber - 1) * query.PageSize + 1;
+        var keys = Enumerable.Range(first, Math.Clamp(totalRows - first + 1, 0, query.PageSize)).ToArray();
+        var page = PageOf(query with { PageNumber = pageNumber }, totalRows, keys);
+
+        return new MaviGridCollection<int>
+        {
+            Columns = page.Columns,
+            Rows = page.Rows,
+            PageNumber = page.PageNumber,
+            PageSize = page.PageSize,
+            TotalRows = page.TotalRows,
+            TotalPages = page.TotalPages,
+            SortColumnKey = page.SortColumnKey,
+            SortOrder = page.SortOrder,
+            NextPageCursor = pageNumber < totalPages ? $"after-{keys[^1]}" : null,
+            PreviousPageCursor = pageNumber > 1 ? $"before-{keys[0]}" : null
+        };
+    }
+
     public static MaviGridCollection<int> Denied(string? message = null) => new()
     {
         Columns = Columns.Select(c => new MaviGridColumn { Key = c.Key, Title = c.Title, Index = c.Index, Sequence = c.Sequence, PropertyType = c.PropertyType }).ToArray(),

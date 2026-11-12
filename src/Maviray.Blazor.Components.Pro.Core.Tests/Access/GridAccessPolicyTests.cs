@@ -204,4 +204,68 @@ public class GridAccessPolicyTests
 
         Assert.Equal(GridAccessOutcome.NotApplicable, decision.Outcome);
     }
+
+    private static GridAccessRequest RushOrderRequest => new(typeof(TestRushOrder), typeof(TestOrderGridModel), null);
+
+    [Fact]
+    public async Task TypedPolicy_ForABaseType_FiltersADerivedTypesRows()
+    {
+        IGridAccessPolicy policy = new OrdersAfterFirstPolicy();
+        TestRushOrder[] rushOrders = [new() { Id = 1 }, new() { Id = 2 }, new() { Id = 3 }];
+
+        var decision = await policy.EvaluateAsync<TestRushOrder>(RushOrderRequest, Ct);
+
+        Assert.Equal(GridAccessOutcome.Allowed, decision.Outcome);
+        Assert.Equal([2, 3], rushOrders.AsQueryable().Where(decision.RowFilter!).Select(x => x.Id));
+    }
+
+    private sealed class DenyingOrdersPolicy : GridAccessPolicy<TestOrder>
+    {
+        protected override ValueTask<GridAccessDecision<TestOrder>> EvaluateAsync(GridAccessRequest request, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(GridAccessDecision<TestOrder>.Deny("orders are restricted"));
+    }
+
+    [Fact]
+    public async Task TypedPolicy_ForABaseType_DeniesADerivedType_WithItsMessage()
+    {
+        IGridAccessPolicy policy = new DenyingOrdersPolicy();
+
+        var decision = await policy.EvaluateAsync<TestRushOrder>(RushOrderRequest, Ct);
+
+        Assert.Equal(GridAccessOutcome.Denied, decision.Outcome);
+        Assert.Equal("orders are restricted", decision.DeniedMessage);
+    }
+
+    private sealed class RushOrdersOnlyPolicy : GridAccessPolicy<TestRushOrder>
+    {
+        protected override ValueTask<GridAccessDecision<TestRushOrder>> EvaluateAsync(GridAccessRequest request, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(GridAccessDecision<TestRushOrder>.Deny());
+    }
+
+    [Fact]
+    public async Task TypedPolicy_ForADerivedType_IsNotApplicableToItsBase()
+    {
+        IGridAccessPolicy policy = new RushOrdersOnlyPolicy();
+
+        var decision = await policy.EvaluateAsync<TestOrder>(new GridAccessRequest(typeof(TestOrder), typeof(TestOrderGridModel), null), Ct);
+
+        Assert.Equal(GridAccessOutcome.NotApplicable, decision.Outcome);
+    }
+
+    private sealed class OwnerSevenPolicy : GridAccessPolicy<IOwnedItem>
+    {
+        protected override ValueTask<GridAccessDecision<IOwnedItem>> EvaluateAsync(GridAccessRequest request, CancellationToken cancellationToken) =>
+            ValueTask.FromResult(GridAccessDecision<IOwnedItem>.Allow(x => x.OwnerId == 7));
+    }
+
+    [Fact]
+    public async Task TypedPolicy_ForAnInterface_FiltersTheRowsOfTypesThatImplementIt()
+    {
+        IGridAccessPolicy policy = new OwnerSevenPolicy();
+        DerivedOwnedItem[] items = [new() { Id = 1, OwnerId = 3 }, new() { Id = 2, OwnerId = 7 }];
+
+        var decision = await policy.EvaluateAsync<DerivedOwnedItem>(new GridAccessRequest(typeof(DerivedOwnedItem), typeof(object), null), Ct);
+
+        Assert.Equal([2], items.AsQueryable().Where(decision.RowFilter!).Select(x => x.Id));
+    }
 }

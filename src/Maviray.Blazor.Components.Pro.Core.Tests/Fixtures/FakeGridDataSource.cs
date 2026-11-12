@@ -33,7 +33,8 @@ public sealed class FakeGridDataSource(IReadOnlyList<TestOrder> items) : IGridDa
             ? filtered.OrderByDynamic(sort.Path, sort.Order, sort.NullDefault).ThenByDynamic(nameof(TestOrder.Id), sort.Order)
             : filtered.OrderBy(x => x.Id);
 
-        IReadOnlyList<TestOrder> page = ordered.Skip(query.Skip).Take(query.Take).ToList();
+        var sliced = ordered.Skip(query.Skip).Take(query.Take);
+        IReadOnlyList<TestOrder> page = query.SelectPaths is { } paths ? sliced.SelectPaths(paths).ToList() : sliced.ToList();
         return Task.FromResult(page);
     }
 
