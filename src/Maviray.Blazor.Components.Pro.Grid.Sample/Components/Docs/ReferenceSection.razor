@@ -1,0 +1,52 @@
+<DocSection Anchor="reference" Number="1" Title="Reference"
+            Summary="Everything MaviGrid and its packages expose to your code. Sections 2 to 16 show each part in use, with the code that runs it.">
+
+    <h3 class="@DocStyles.SubTitle">1.1 MaviGrid&lt;TKey&gt; parameters</h3>
+    <DocTable Rows="DocReference.ComponentParameters" NameHeader="Parameter" />
+
+    <h3 class="@DocStyles.SubTitle">1.2 Methods and properties</h3>
+    <p class="@DocStyles.Body mb-3">
+        Reach them through a component reference: <code>&lt;MaviGrid @@ref="_grid" … /&gt;</code> with
+        <code>private MaviGrid&lt;int&gt;? _grid;</code> (section 7).
+    </p>
+    <DocTable Rows="DocReference.ComponentMembers" NameHeader="Member" ShowDefault="false" />
+
+    <h3 class="@DocStyles.SubTitle">1.3 MaviGridParameters</h3>
+    <p class="@DocStyles.Body mb-3">The <code>Parameters</code> object: look, behaviour and texts. Create it once per grid (a field).</p>
+    <DocTable Rows="DocReference.GridParameters" NameHeader="Property" />
+
+    <h3 class="@DocStyles.SubTitle">1.4 GridFetchOptions&lt;TDataItem, TModel&gt;</h3>
+    <p class="@DocStyles.Body mb-3">
+        Passed to <code>IGridDataFactory.BuildPageAsync</code> with every fetch. Create it once per grid (a static or a
+        field): the factory caches the columns it builds for it.
+    </p>
+    <DocTable Rows="DocReference.FetchOptions" NameHeader="Property" />
+
+    <h3 class="@DocStyles.SubTitle">1.5 Registration (Program.cs)</h3>
+    <DocTable Rows="DocReference.Registration" NameHeader="Method or option" TypeHeader="Returns / type" />
+
+    <h3 class="@DocStyles.SubTitle">1.6 The grid model</h3>
+    <p class="@DocStyles.Body mb-3">
+        A class implementing <code>IGridCollectionModel&lt;TDataItem, TKey&gt;</code>: one row of the grid, one
+        property per column (section 16).
+    </p>
+    <DocTable Rows="DocReference.ModelMembers" NameHeader="Member" ShowDefault="false" />
+    <div class="mt-4">
+        <DocTable Rows="DocReference.Attributes" NameHeader="Attribute" TypeHeader="Goes on" />
+    </div>
+
+    <h3 class="@DocStyles.SubTitle">1.7 What FetchData receives and returns</h3>
+    <p class="@DocStyles.Body mb-3"><code>MaviGridQuery</code>: what the grid asks for.</p>
+    <DocTable Rows="DocReference.QueryMembers" NameHeader="Property" />
+    <p class="@DocStyles.Body mt-4 mb-3"><code>MaviGridCollection&lt;TKey&gt;</code>: the page you return (the factory and the page builder make it for you).</p>
+    <DocTable Rows="DocReference.CollectionMembers" NameHeader="Property" />
+
+    <h3 class="@DocStyles.SubTitle">1.8 What the callbacks receive</h3>
+    <DocTable Rows="DocReference.CallbackTypes" NameHeader="Type" TypeHeader="Kind" ShowDefault="false" />
+
+    <h3 class="@DocStyles.SubTitle">1.9 Access and audit</h3>
+    <DocTable Rows="DocReference.AccessTypes" NameHeader="Type or member" TypeHeader="Kind" ShowDefault="false" />
+
+    <h3 class="@DocStyles.SubTitle">1.10 Loading pages yourself</h3>
+    <DocTable Rows="DocReference.DataAccessTypes" NameHeader="Type" TypeHeader="Kind" ShowDefault="false" />
+</DocSection>

@@ -1,0 +1,44 @@
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Enums
+@using Microsoft.EntityFrameworkCore
+
+<DocSection Anchor="related-data" Number="10" Title="Related data and mapped columns"
+            Summary="Columns can come from related entities (an order item's order, customer and country) or be computed. Include loads the related data; a GridPropertyPathMap tells the grid where a column lives, so it can still be sorted and filtered in the database.">
+
+    <div class="@DocStyles.Demo">
+        <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_parameters" />
+    </div>
+
+    <DocCode Caption="OrderItemGridModel.cs and the page (parts)" Code="@DocSnippets.RelatedData" />
+
+    <ul class="@DocStyles.Body list-disc pl-6 mt-4 space-y-1">
+        <li>Order Number, Customer Company, Country and Region Rating are mapped: try sorting and filtering them.</li>
+        <li><code>nullDefault</code> makes a missing value sort and filter as the default <code>ConstructFrom</code> shows.</li>
+        <li>Total Line Value and Full Description are computed from several values, so they have no sort button or filter.</li>
+        <li>For a simple related model, <code>[GridNavProperty]</code> loads the navigation without any <code>Include</code> (section 16).</li>
+    </ul>
+</DocSection>
+
+@code {
+    private static readonly GridFetchOptions<OrderItem, OrderItemGridModel> Options = new()
+    {
+        Include = query => query
+            .Include(i => i.Order)
+            .ThenInclude(o => o!.Customer)
+            .ThenInclude(c => c!.Region)
+            .ThenInclude(r => r!.Country),
+        PropertyPathMap = new GridPropertyPathMap<OrderItem, OrderItemGridModel>()
+            .Map(m => m.OrderNumber, "Order.OrderNumber")
+            .Map(m => m.CustomerCompanyName, "Order.Customer.CompanyName")
+            .Map(m => m.CountryName, "Order.Customer.Region.Country.CountryName")
+            .Map(m => m.RegionRatingOrDefault, "Order.Customer.Region.Rating", nullDefault: RatingEnum.Low)
+            .Map(m => m.IsInternationalOrDefault, "Order.Customer.Region.IsInternational", nullDefault: false)
+    };
+
+    private readonly MaviGridParameters _parameters = new() { EnableFilters = true, PageSize = 5 };
+
+    [Inject]
+    private IGridDataFactory<OrderItem, OrderItemGridModel, int> GridData { get; set; } = default!;
+
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        GridData.BuildPageAsync(query, Options, cancellationToken);
+}

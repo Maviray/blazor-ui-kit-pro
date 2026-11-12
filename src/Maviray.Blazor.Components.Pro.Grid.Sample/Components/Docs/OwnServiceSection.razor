@@ -1,0 +1,46 @@
+<DocSection Anchor="own-service" Number="15" Title="Loading pages with your own service"
+            Summary="When your app loads data through its own service layer (DTOs, your own authorization), skip IGridDataFactory. Your FetchData calls the service and GridPageBuilder turns the result into a grid page, with the same columns, cells and formatting.">
+
+    <div class="@DocStyles.Demo">
+        <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_parameters" />
+    </div>
+
+    <DocNote Label="Count queries the service has run">
+        @Products.CountCalls. Page through: the count runs once, then again only when the filter changes.
+    </DocNote>
+
+    <DocCode Caption="The page" Code="@DocSnippets.OwnServicePage" />
+    <DocCode Caption="Inside ProductService (parts)" Code="@DocSnippets.OwnServiceCode" />
+
+    <ul class="@DocStyles.Body list-disc pl-6 mt-4 space-y-1">
+        <li>The row model (<code>ProductRow</code>) keeps the grid attributes off the DTO; its <code>TDataItem</code> is the DTO.</li>
+        <li>Only columns named like a DTO member are sortable and filterable (Price band is computed, so it isn't). <code>GridPageBuilder.Columns()</code> lists them.</li>
+        <li>The cursor and the known total are optional: without them, page with skip and take and count each time.</li>
+        <li>Policies and observers registered with <code>AddMaviGrid</code> don't run here: your service is the gate.</li>
+    </ul>
+</DocSection>
+
+@code {
+    private readonly MaviGridParameters _parameters = new() { EnableFilters = true, SortColumnKey = "Name", PageSize = 5 };
+
+    [Inject]
+    private ProductService Products { get; set; } = default!;
+
+    private async Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken)
+    {
+        var nameFilter = query.Filters.FirstOrDefault(f => f.ColumnKey == nameof(ProductRow.Name))?.Value;
+        var request = new ProductPageRequest(query.PageNumber, query.PageSize, query.SortColumnKey ?? nameof(ProductDto.Id),
+            query.SortOrder, nameFilter, query.KnownTotalRows, query.Cursor);
+
+        var page = await Products.GetPageAsync(request, cancellationToken);
+        StateHasChanged();
+
+        return GridPageBuilder<ProductDto, ProductRow, int>.Build(
+            new GridLoadedPage<ProductDto>(page.Items, page.Page, page.PageSize, page.TotalCount)
+            {
+                NextPageCursor = page.NextCursor,
+                PreviousPageCursor = page.PreviousCursor
+            },
+            query);
+    }
+}

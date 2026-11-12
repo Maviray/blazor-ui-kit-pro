@@ -1,0 +1,37 @@
+@* A code snippet with an optional file caption and a copy button. The text is rendered as text, so snippets need no
+   HTML or Razor escaping. *@
+@inject IJSRuntime Js
+
+<figure class="mt-3 mb-0">
+    @if (Caption is not null)
+    {
+        <figcaption class="@DocStyles.Small mb-1 font-semibold">@Caption</figcaption>
+    }
+    <div class="relative">
+        <pre class="@DocStyles.CodeBlock"><code>@Code</code></pre>
+        <div class="absolute top-2 right-2">
+            <MaviButtonIcon Icon="@(_copied ? "lni lni-check" : "lni lni-clipboard")" ElementVariant="ElementVariant.Text"
+                            ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Small" Title="Copy" OnClick="CopyAsync" />
+        </div>
+    </div>
+</figure>
+
+@code {
+    private bool _copied;
+
+    [Parameter, EditorRequired]
+    public string Code { get; set; } = "";
+
+    /// <summary>Where the code goes, for example "Program.cs".</summary>
+    [Parameter]
+    public string? Caption { get; set; }
+
+    private async Task CopyAsync(MouseClickEventArgs _)
+    {
+        await Js.InvokeVoidAsync("navigator.clipboard.writeText", Code);
+        _copied = true;
+        StateHasChanged();
+        await Task.Delay(1500);
+        _copied = false;
+    }
+}

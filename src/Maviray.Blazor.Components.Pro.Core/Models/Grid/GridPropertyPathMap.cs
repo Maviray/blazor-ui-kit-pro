@@ -1,47 +1,47 @@
+using System.Collections.Immutable;
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace Maviray.Blazor.Components.Pro.Core.Models.Grid;
 
 /// <summary>
-/// Maps a <typeparamref name="TModel"/> property built from custom logic in
-/// <c>IGridCollectionModel&lt;TDataItem,TKey&gt;.ConstructFrom</c> to the <typeparamref name="TDataItem"/>
-/// dot-path <see cref="Services.GenericGridDataFactory{TDataItem,TModel,TKey}"/> should use to sort/filter
-/// by that property. Optionally carries a <c>nullDefault</c> so a nullable navigation value that
-/// <c>ConstructFrom</c> coalesces (e.g. <c>dataItem.Nav?.Flag ?? false</c>) sorts/filters the same way at
-/// the database as it does in memory.
+/// Data item paths for model columns that have no identically named data item member, typically columns computed
+/// in <c>ConstructFrom</c>. A mapped column can be sorted and filtered at the data source. Immutable:
+/// <see cref="Map"/> returns a new map, so a map can be shared and the columns built for it are reused.
 /// </summary>
-public sealed class GridPropertyPathMap<TDataItem, TModel>
-    where TDataItem : class
+public sealed class GridPropertyPathMap<TDataItem, TModel> where TDataItem : class
 {
-    private readonly Dictionary<string, GridPropertyPath> _paths = [];
+    private readonly ImmutableDictionary<string, GridPropertyPath> _paths;
 
-    public GridPropertyPathMap<TDataItem, TModel> Map(
-        Expression<Func<TModel, object?>> modelProperty,
-        string dataItemPath,
-        object? nullDefault = null)
+    public GridPropertyPathMap() : this(ImmutableDictionary.Create<string, GridPropertyPath>(StringComparer.Ordinal))
     {
-        _paths[GetPropertyName(modelProperty)] = new GridPropertyPath(dataItemPath, nullDefault);
-        return this;
     }
 
-    internal bool TryResolve(string modelPropertyName, out GridPropertyPath path) =>
-        _paths.TryGetValue(modelPropertyName, out path!);
+    private GridPropertyPathMap(ImmutableDictionary<string, GridPropertyPath> paths) => _paths = paths;
+
+    /// <summary>Returns a map in which <paramref name="modelProperty"/> sorts and filters by <paramref name="dataItemPath"/>.</summary>
+    /// <param name="modelProperty">The model property, for example <c>m => m.CustomerName</c>.</param>
+    /// <param name="dataItemPath">Dot-path on the data item, for example <c>"Customer.Name"</c>.</param>
+    /// <param name="nullDefault">
+    /// When set, a <see langword="null"/> at the path sorts and filters as this value, matching a coalesce in
+    /// <c>ConstructFrom</c> such as <c>?? false</c>.
+    /// </param>
+    public GridPropertyPathMap<TDataItem, TModel> Map(Expression<Func<TModel, object?>> modelProperty, string dataItemPath, object? nullDefault = null)
+    {
+        ArgumentNullException.ThrowIfNull(modelProperty);
+        ArgumentException.ThrowIfNullOrWhiteSpace(dataItemPath);
+
+        return new GridPropertyPathMap<TDataItem, TModel>(_paths.SetItem(GetPropertyName(modelProperty), new GridPropertyPath(dataItemPath, nullDefault)));
+    }
+
+    internal bool TryResolve(string modelPropertyName, out GridPropertyPath path) => _paths.TryGetValue(modelPropertyName, out path!);
 
     private static string GetPropertyName(Expression<Func<TModel, object?>> modelProperty)
     {
-        var body = modelProperty.Body;
+        var body = modelProperty.Body is UnaryExpression { NodeType: ExpressionType.Convert } unary ? unary.Operand : modelProperty.Body;
 
-        if (body is UnaryExpression { NodeType: ExpressionType.Convert } unary)
-        {
-            body = unary.Operand;
-        }
-
-        if (body is MemberExpression { Member: PropertyInfo property })
-        {
-            return property.Name;
-        }
-
-        throw new ArgumentException($"Expression '{modelProperty}' must be a simple property access.", nameof(modelProperty));
+        return body is MemberExpression { Member: PropertyInfo property }
+            ? property.Name
+            : throw new ArgumentException($"Expression '{modelProperty}' must be a simple property access.", nameof(modelProperty));
     }
 }

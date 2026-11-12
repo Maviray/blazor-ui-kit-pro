@@ -1,0 +1,49 @@
+<DocSection Anchor="main-menu" Number="5" Title="Header menu"
+            Summary="Grid-wide actions (export, add, refresh) go in the ⋯ menu at the top right of the header. ConstructMainContextMenu builds it; OnMainContextMenuButtonClick reports the item clicked.">
+
+    <div class="@DocStyles.Demo">
+        <MaviGrid @ref="_grid" TKey="int" FetchData="FetchPageAsync" Parameters="_parameters"
+                  ConstructMainContextMenu="BuildMenuAsync" OnMainContextMenuButtonClick="OnMenuItemAsync" />
+    </div>
+
+    <DocNote Label="Last menu item" Kind="success">@_lastItem</DocNote>
+
+    <DocCode Code="@DocSnippets.MainMenu" />
+
+    <p class="@DocStyles.Body mt-4">
+        The menu is built when the grid starts and again on <code>RefreshAsync()</code>, so it can depend on the user or
+        the data. Return no items and the menu button disappears. A failure in your builder is yours: the grid doesn't
+        catch it.
+    </p>
+</DocSection>
+
+@code {
+    private readonly MaviGridParameters _parameters = new() { PageSize = 5 };
+    private MaviGrid<int>? _grid;
+    private string _lastItem = "none yet";
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocItemModel, int> GridData { get; set; } = default!;
+
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        GridData.BuildPageAsync(query, cancellationToken: cancellationToken);
+
+    private static Task<IEnumerable<IMaviContextMenuItem>> BuildMenuAsync() =>
+        Task.FromResult<IEnumerable<IMaviContextMenuItem>>(
+        [
+            new MaviContextMenuItem { Key = "export", Title = "Export to CSV" },
+            new MaviContextMenuItem { Key = "refresh", Title = "Refresh" },
+            new MaviContextMenuItem { Key = "archive", Title = "Archive (not yet)", Disabled = true }
+        ]);
+
+    private async Task OnMenuItemAsync(IMaviContextMenuItem item)
+    {
+        _lastItem = $"{item.Title} (key \"{item.Key}\")";
+        StateHasChanged();
+
+        if (item.Key == "refresh" && _grid is not null)
+        {
+            await _grid.RefreshAsync();
+        }
+    }
+}

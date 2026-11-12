@@ -1,19 +1,14 @@
-﻿using Maviray.Blazor.Components.Core.Models.Tables;
-using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid;
+﻿using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid;
 
 namespace Maviray.Blazor.Components.Pro.Core.Models.Grid;
 
-public class MaviGridRow<TKey> where TKey : IEquatable<TKey>
+/// <summary>One grid row: its key, one cell per column, and the row's actions.</summary>
+public sealed class MaviGridRow<TKey> where TKey : IEquatable<TKey>
 {
-    public TKey? Key { get; set; }
-    public string Guid { get; init; } = System.Guid.NewGuid().ToString();
-    public bool Selected { get; set; }
-    public bool Active { get; set; }
+    public required TKey Key { get; init; }
 
-    public bool ContextMenuVisible { get; set; }
-    public string ContextMenuId => $"context-menu-{Guid}";
+    /// <summary>One cell per column, in column order: the cell of a column is <c>Cells[column.Index]</c>.</summary>
+    public required IReadOnlyList<MaviGridCell> Cells { get; init; }
 
-    public List<MaviGridCell<TKey>> Cells { get; set; } = [];
-    public IDictionary<string, object> Properties { get; set; } = new Dictionary<string, object>();
-    public List<IMaviRowContextMenuItem<TKey>> ContextActions { get; set; } = [];
+    public IReadOnlyList<IMaviRowContextMenuItem<TKey>> ContextActions { get; init; } = [];
 }

@@ -1,0 +1,14 @@
+<DocSection Anchor="data-model" Number="16" Title="The grid model"
+            Summary="The grid model is a plain class that describes one row: which columns exist, in what order, how they read, the row's key and its actions. It is the model behind the grid in section 9.">
+
+    <ul class="@DocStyles.Body list-disc pl-6 mb-4 space-y-2">
+        <li><strong>Columns.</strong> Every property with <code>[GridDataProperty(sequence)]</code> is a column, ordered by sequence. Properties without it are not shown. The column key is the property name (<code>Nav.Property</code> for nested columns).</li>
+        <li><strong>Filling it.</strong> For each row the factory copies every entity member with the same name into the model, then calls <code>ConstructFrom(entity)</code> for the rest: computed values, values from related entities.</li>
+        <li><strong>Sorting and filtering.</strong> A column is sortable and filterable when the grid knows where it lives in the entity: a member with the same name, or a <code>GridPropertyPathMap</code> entry (section 10). Computed columns are shown but can't be sorted or filtered.</li>
+        <li><strong>Related entities.</strong> <code>[GridNavProperty]</code> on a property named like the entity's navigation loads it for the page; the related model's <code>[GridNestedProperty]</code> members become columns. For deeper paths use <code>Include</code> and a path map.</li>
+        <li><strong>Key and actions.</strong> <code>Key</code> is the row's identity for selection, actions and clicks; <code>GetContextActions()</code> returns the row's actions (section 4).</li>
+        <li><strong>One model per grid layout.</strong> Several models can read the same entity; this page has three over <code>DbSampleItemOne</code>.</li>
+    </ul>
+
+    <DocCode Caption="DocFormattingModel.cs" Code="@DocSnippets.DataModel" />
+</DocSection>

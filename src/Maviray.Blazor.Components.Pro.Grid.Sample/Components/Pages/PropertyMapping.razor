@@ -1,7 +1,6 @@
 @page "/property-mapping"
 @using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid
 @using Maviray.Blazor.Components.Pro.Core.Models.Grid
-@using Maviray.Blazor.Components.Pro.Core.Models.Grid.Filter
 @using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Enums
 @using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models
 @using Maviray.Blazor.Components.Pro.Grid.Sample.Models
@@ -12,63 +11,46 @@
 
 <div class="p-4 flex flex-col gap-4">
     <div class="text-sm text-zinc-600 max-w-3xl">
-        This grid shows <code>OrderItem</code>, whose <code>OrderItemGridModel</code> mixes four
-        kinds of columns: direct one-to-one properties (<strong>Id</strong>, <strong>Product Name</strong>,
-        <strong>Is Backordered</strong>, <strong>Quantity</strong>, <strong>Unit Price</strong>), properties
-        mapped through related entities via <code>GridPropertyPathMap</code> (<strong>Order Number</strong>,
-        <strong>Customer Company</strong>, <strong>Country</strong>), properties resolved the same way but
-        with a coalesced default for a customer with no region (<strong>Region Rating (or Default)</strong>,
-        <strong>Is International (or Default)</strong>), and two genuinely computed columns with no single
-        backing path (<strong>Total Line Value</strong>, <strong>Full Description</strong>) &mdash; those two
-        have no sort-click affordance and no filter input, since they can't be resolved.
+        This grid shows <code>OrderItem</code>, whose <code>OrderItemGridModel</code> mixes four kinds of columns:
+        direct one-to-one properties (<strong>Id</strong>, <strong>Product Name</strong>, <strong>Is Backordered</strong>,
+        <strong>Quantity</strong>, <strong>Unit Price</strong>), properties mapped through related entities with a
+        <code>GridPropertyPathMap</code> (<strong>Order Number</strong>, <strong>Customer Company</strong>,
+        <strong>Country</strong>), properties mapped the same way with a default for a customer with no region
+        (<strong>Region Rating (or Default)</strong>, <strong>Is International (or Default)</strong>), and two computed
+        columns with no single data path (<strong>Total Line Value</strong>, <strong>Full Description</strong>), which
+        therefore can't be sorted or filtered.
     </div>
 
-    <MaviGrid @ref="_grid"
-              TDataItem="OrderItem"
-              TModel="OrderItemGridModel"
-              TKey="int"
-              FetchData="FetchGridData"
-              Parameters="_gridParameters" />
+    <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_gridParameters" />
 </div>
 
 @code
 {
-    private readonly MaviGridParameters _gridParameters = new()
+    // Built once and shared by every fetch, so the factory reuses the columns it builds for this map.
+    private static readonly GridFetchOptions<OrderItem, OrderItemGridModel> FetchOptions = new()
     {
-        EnableFilters = true
-    };
-
-    private MaviGrid<OrderItem, OrderItemGridModel, int>? _grid;
-
-    [Inject]
-    private IGenericGridDataFactory<OrderItem, OrderItemGridModel, int>? DataFactory { get; set; }
-
-    private static readonly GridPropertyPathMap<OrderItem, OrderItemGridModel> PropertyPathMap = new GridPropertyPathMap<OrderItem, OrderItemGridModel>()
-        .Map(m => m.OrderNumber, "Order.OrderNumber")
-        .Map(m => m.CustomerCompanyName, "Order.Customer.CompanyName")
-        .Map(m => m.CountryName, "Order.Customer.Region.Country.CountryName")
-        .Map(m => m.RegionRatingOrDefault, "Order.Customer.Region.Rating", nullDefault: RatingEnum.Low)
-        .Map(m => m.IsInternationalOrDefault, "Order.Customer.Region.IsInternational", nullDefault: false);
-
-    private static IQueryable<OrderItem> BuildQuery(IQueryable<OrderItem> query) =>
-        query
+        Include = query => query
             .Include(i => i.Order)
             .ThenInclude(o => o!.Customer)
             .ThenInclude(c => c!.Region)
-            .ThenInclude(r => r!.Country);
+            .ThenInclude(r => r!.Country),
+        PropertyPathMap = new GridPropertyPathMap<OrderItem, OrderItemGridModel>()
+            .Map(m => m.OrderNumber, "Order.OrderNumber")
+            .Map(m => m.CustomerCompanyName, "Order.Customer.CompanyName")
+            .Map(m => m.CountryName, "Order.Customer.Region.Country.CountryName")
+            .Map(m => m.RegionRatingOrDefault, "Order.Customer.Region.Rating", nullDefault: RatingEnum.Low)
+            .Map(m => m.IsInternationalOrDefault, "Order.Customer.Region.IsInternational", nullDefault: false)
+    };
 
-    private async Task<MaviGridCollection<int>?> FetchGridData(MaviGridDataQueryParameters parameters)
+    private readonly MaviGridParameters _gridParameters = new()
     {
-        if (string.IsNullOrWhiteSpace(parameters.OrderByColumnKey))
-        {
-            parameters.OrderByColumnKey = "Id";
-        }
+        EnableFilters = true,
+        SortColumnKey = "Id"
+    };
 
-        if (DataFactory == null)
-        {
-            return null;
-        }
+    [Inject]
+    private IGridDataFactory<OrderItem, OrderItemGridModel, int> DataFactory { get; set; } = default!;
 
-        return await DataFactory.BuildDataCollection(parameters, includeConfigurator: BuildQuery, propertyPathMap: PropertyPathMap);
-    }
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        DataFactory.BuildPageAsync(query, FetchOptions, cancellationToken);
 }

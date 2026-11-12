@@ -1,0 +1,51 @@
+<DocSection Anchor="selection" Number="7" Title="Selection, columns and refresh"
+            Summary="With a component reference to the grid, your code can read the selected rows, clear them, hide or show columns, and fetch the page again.">
+
+    <div class="@DocStyles.Demo">
+        <MaviGrid @ref="_grid" TKey="int" FetchData="FetchPageAsync" Parameters="_parameters" />
+    </div>
+
+    <div class="flex flex-wrap gap-3 mt-4">
+        <MaviButton Title="Show selected" ThemeColorScheme="ThemeColorScheme.Primary" ElementVariant="ElementVariant.Outlined" ElementSize="ElementSize.Small" OnClick="ShowSelected" />
+        <MaviButton Title="Clear selection" ThemeColorScheme="ThemeColorScheme.Primary" ElementVariant="ElementVariant.Outlined" ElementSize="ElementSize.Small" OnClick="ClearSelection" />
+        <MaviButton Title="Hide / show Created" ThemeColorScheme="ThemeColorScheme.Primary" ElementVariant="ElementVariant.Outlined" ElementSize="ElementSize.Small" OnClick="ToggleCreated" />
+        <MaviButton Title="Refresh" ThemeColorScheme="ThemeColorScheme.Primary" ElementVariant="ElementVariant.Outlined" ElementSize="ElementSize.Small" OnClick="RefreshAsync" />
+    </div>
+
+    <DocNote Label="SelectedKeys" Kind="success">@(_selected ?? "press Show selected")</DocNote>
+    <DocNote Label="HiddenColumnKeys">@(_grid is { HiddenColumnKeys.Count: > 0 } ? string.Join(", ", _grid.HiddenColumnKeys) : "none")</DocNote>
+
+    <DocCode Code="@DocSnippets.Selection" />
+
+    <ul class="@DocStyles.Body list-disc pl-6 mt-4 space-y-1">
+        <li>Selection and hidden columns are kept across pages, sorts and filters.</li>
+        <li>Users can also hide columns themselves with the sliders button in the pager.</li>
+        <li><code>RefreshAsync()</code> counts the rows again and rebuilds the header menu: call it after you change data.</li>
+    </ul>
+</DocSection>
+
+@code {
+    private readonly MaviGridParameters _parameters = new() { DisplaySelectColumn = true, PageSize = 5 };
+    private MaviGrid<int>? _grid;
+    private string? _selected;
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocItemModel, int> GridData { get; set; } = default!;
+
+    private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        GridData.BuildPageAsync(query, cancellationToken: cancellationToken);
+
+    private void ShowSelected(MouseClickEventArgs _) =>
+        _selected = _grid!.SelectedKeys.Count == 0 ? "no rows selected" : string.Join(", ", _grid.SelectedKeys.Order());
+
+    private void ClearSelection(MouseClickEventArgs _)
+    {
+        _grid!.ClearSelection();
+        _selected = null;
+    }
+
+    private void ToggleCreated(MouseClickEventArgs _) =>
+        _grid!.SetColumnVisible("Date", visible: _grid.HiddenColumnKeys.Contains("Date"));
+
+    private Task RefreshAsync(MouseClickEventArgs _) => _grid!.RefreshAsync();
+}

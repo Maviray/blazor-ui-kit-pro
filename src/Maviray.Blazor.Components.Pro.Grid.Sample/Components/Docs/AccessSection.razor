@@ -1,0 +1,64 @@
+@using Maviray.Blazor.Components.Material.Components
+
+<DocSection Anchor="access" Number="13" Title="Access policies, hidden columns and audit"
+            Summary="An access policy runs before every fetch and decides: not my concern, allowed (optionally only some rows, optionally without some columns), or denied. A fetch observer is told afterwards which rows were loaded. The library knows nothing about your roles or claims: your policy reads them.">
+
+    <div class="flex flex-wrap gap-6 mb-4">
+        <MaviCheckbox @bind-Value="State.OnlySmallAmounts" @bind-Value:after="ApplyAsync" Label="Only amounts below 500 (row filter)" />
+        <MaviCheckbox @bind-Value="State.HideCreatedColumn" @bind-Value:after="ApplyAsync" Label="Hide the Created column" />
+    </div>
+
+    <div class="@DocStyles.Demo">
+        <MaviGrid @ref="_grid" TKey="int" FetchData="FetchPageAsync" Parameters="_parameters" />
+    </div>
+
+    <DocNote Label="Audit (newest first)">
+        <ul class="mt-1 font-mono text-xs">
+            @foreach (var entry in AuditLog.Entries)
+            {
+                <li>@entry</li>
+            }
+        </ul>
+    </DocNote>
+
+    <DocCode Caption="DocsAccessPolicy.cs" Code="@DocSnippets.AccessPolicy" />
+    <DocCode Caption="DocsAuditObserver.cs" Code="@DocSnippets.FetchObserver" />
+    <DocCode Caption="Program.cs and the page" Code="@DocSnippets.AccessRegistration" />
+
+    <ul class="@DocStyles.Body list-disc pl-6 mt-4 space-y-1">
+        <li>Policies run in registration order. The first denial wins; the row filters of every allow are combined; hidden columns of every decision add up.</li>
+        <li>A hidden column is gone from the page: no header, no cells, no column dialog entry, and its sort and filter are ignored, so nobody can guess values by filtering.</li>
+        <li><code>GridAccessPolicy&lt;TEntity&gt;</code> also covers subtypes of <code>TEntity</code> (EF inheritance). For a rule over an interface, write <code>GridAccessPolicy&lt;ITenantScoped&gt;</code>.</li>
+        <li>A policy that throws, or returns no decision, fails the fetch: it never lets it through.</li>
+        <li>Observers run inside the fetch; for best-effort audit, catch and queue to a background writer.</li>
+        <li>The <a class="underline" href="/access">Access policies</a> page of this sample shows a denial.</li>
+    </ul>
+</DocSection>
+
+@code {
+    private static readonly GridFetchOptions<DbSampleItemOne, DocItemModel> Options = new() { AccessTag = DocsAccessPolicy.AccessTag };
+
+    private readonly MaviGridParameters _parameters = new() { EnableFilters = true, PageSize = 5 };
+    private MaviGrid<int>? _grid;
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocItemModel, int> GridData { get; set; } = default!;
+
+    [Inject]
+    private DocsAccessState State { get; set; } = default!;
+
+    [Inject]
+    private DocsAuditLog AuditLog { get; set; } = default!;
+
+    private async Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken)
+    {
+        var page = await GridData.BuildPageAsync(query, Options, cancellationToken);
+
+        // The observer has written to the audit log: show it.
+        StateHasChanged();
+        return page;
+    }
+
+    // Access changed: fetch again, with a fresh count.
+    private Task ApplyAsync() => _grid?.RefreshAsync() ?? Task.CompletedTask;
+}

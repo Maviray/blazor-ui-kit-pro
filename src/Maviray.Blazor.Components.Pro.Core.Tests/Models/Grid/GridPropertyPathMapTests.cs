@@ -55,4 +55,16 @@ public class GridPropertyPathMapTests
         Assert.True(resolved);
         Assert.Equal("Approved", path.DataItemPath);
     }
+
+    [Fact]
+    public void Map_ReturnsANewMap_AndLeavesTheOriginalUnchanged()
+    {
+        var empty = new GridPropertyPathMap<TestOrder, TestOrderGridModel>();
+
+        var mapped = empty.Map(m => m.VendorCode, "Vendor.Code");
+
+        Assert.NotSame(empty, mapped);
+        Assert.False(empty.TryResolve("VendorCode", out _));
+        Assert.True(mapped.TryResolve("VendorCode", out _));
+    }
 }

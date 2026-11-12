@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -21,7 +21,6 @@
 	  <PackageReadmeFile>README.md</PackageReadmeFile>
 	  <PackageIcon>icon.png</PackageIcon>
 	  <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-	  <IsPackable>true</IsPackable>
 	  <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
   </PropertyGroup>
 
@@ -33,10 +32,12 @@
 
 	<ItemGroup>
 		<PackageReference Include="Mapster" Version="10.0.12" />
-		<PackageReference Include="Maviray.Blazor.Components.Core" Version="0.2.9" />
-		<PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.12" />
-		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.12" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
-		<PackageReference Include="Microsoft.JSInterop" Version="10.0.12" />
+		<PackageReference Include="Maviray.Blazor.Components.Core" Version="0.2.10" />
+		<PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.15" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.15" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.15" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
+		<PackageReference Include="Microsoft.Extensions.Options" Version="10.0.15" />
+		<PackageReference Include="Microsoft.JSInterop" Version="10.0.15" />
 	</ItemGroup>
 </Project>

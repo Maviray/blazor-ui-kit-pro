@@ -1,12 +1,8 @@
 namespace Maviray.Blazor.Components.Pro.Core.Attributes.Grid;
 
 /// <summary>
-/// Marks a model property whose grid column should be rendered using an advanced, graphical
-/// presentation (for example a badge) rather than plain text. The factory reflects this attribute
-/// onto <see cref="Models.Grid.MaviGridColumn.GraphicDisplay"/>. The per-cell appearance
-/// (colour) is resolved separately via a consumer-supplied resolver.
+/// Renders a column graphically (as a badge) instead of plain text. Each cell's colour comes from the column's
+/// entry in <see cref="Models.Grid.GridFetchOptions{TDataItem,TModel}.CellThemes"/>.
 /// </summary>
-[AttributeUsage(AttributeTargets.Property)]
-public class GridAdvancedDisplayAttribute : Attribute
-{
-}
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+public sealed class GridAdvancedDisplayAttribute : Attribute;

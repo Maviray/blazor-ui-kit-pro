@@ -1,0 +1,112 @@
+@page "/access"
+@using Maviray.Blazor.Components.Pro.Core.Interfaces
+@using Maviray.Blazor.Components.Pro.Core.Interfaces.Grid
+@using Maviray.Blazor.Components.Pro.Core.Models
+@using Maviray.Blazor.Components.Pro.Core.Models.Grid
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Database.Models
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Models
+@using Maviray.Blazor.Components.Pro.Grid.Sample.Services
+@using Maviray.Blazor.Components.Pro.Grid.UI.Components
+
+<PageTitle>Access policies</PageTitle>
+
+<div class="p-4 flex flex-col gap-4">
+    <div class="text-sm text-zinc-600 max-w-3xl">
+        This grid is tagged <code>@DemoAccessPolicy.AccessTag</code>. A registered <code>IGridAccessPolicy</code>
+        (<code>DemoAccessPolicy</code>) decides before every fetch: full access, only scope <strong>Alpha</strong> (a row
+        filter built with <code>GridFilterExpression.ForInterface</code>), or no access. A registered
+        <code>IGridFetchObserver</code> records what was loaded. The global scope filter of the Scoped page still applies.
+        The grid skips the prerender fetch, so each page view queries (and audits) once.
+    </div>
+
+    <fieldset class="flex gap-6 text-sm">
+        <legend class="sr-only">Access level</legend>
+        @foreach (var mode in Enum.GetValues<DemoAccessMode>())
+        {
+            <label class="flex items-center gap-2">
+                <input type="radio" name="access-mode" checked="@(AccessState.Mode == mode)" @onchange="() => ChangeModeAsync(mode)" />
+                @ModeLabel(mode)
+            </label>
+        }
+    </fieldset>
+
+    @if (_fetchError is not null)
+    {
+        <div class="text-sm text-red-700">The grid could not load: @_fetchError</div>
+    }
+
+    <MaviGrid @ref="_grid" TKey="int"
+              FetchData="FetchPageAsync"
+              Parameters="_gridParameters"
+              ConstructMainContextMenu="BuildMainMenuAsync"
+              OnFetchError="OnFetchError" />
+
+    <div class="text-sm text-zinc-600">
+        <div class="font-semibold">Fetch audit (newest first)</div>
+        <ul>
+            @foreach (var entry in FetchLog.Entries)
+            {
+                <li>@entry</li>
+            }
+        </ul>
+    </div>
+</div>
+
+@code
+{
+    private static readonly GridFetchOptions<DbSampleItemThree, DbSampleItemThreeModel> FetchOptions = new()
+    {
+        AccessTag = DemoAccessPolicy.AccessTag
+    };
+
+    private readonly MaviGridParameters _gridParameters = new()
+    {
+        EnableFilters = true,
+        SortColumnKey = "Id",
+        FetchWhilePrerendering = false
+    };
+
+    private MaviGrid<int>? _grid;
+    private string? _fetchError;
+
+    [Inject]
+    private IGridDataFactory<DbSampleItemThree, DbSampleItemThreeModel, int> DataFactory { get; set; } = default!;
+
+    [Inject]
+    private DemoAccessState AccessState { get; set; } = default!;
+
+    [Inject]
+    private DemoFetchLog FetchLog { get; set; } = default!;
+
+    private static string ModeLabel(DemoAccessMode mode) => mode switch
+    {
+        DemoAccessMode.Full => "Full access",
+        DemoAccessMode.Narrowed => "Scope Alpha only",
+        _ => "No access"
+    };
+
+    private async Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken)
+    {
+        var page = await DataFactory.BuildPageAsync(query, FetchOptions, cancellationToken);
+
+        // The observer wrote to the fetch log; show it.
+        _fetchError = null;
+        StateHasChanged();
+        return page;
+    }
+
+    private static Task<IEnumerable<IMaviContextMenuItem>> BuildMainMenuAsync() =>
+        Task.FromResult<IEnumerable<IMaviContextMenuItem>>([new MaviContextMenuItem { Key = "request-access", Title = "Request access" }]);
+
+    private async Task ChangeModeAsync(DemoAccessMode mode)
+    {
+        AccessState.Mode = mode;
+
+        if (_grid is not null)
+        {
+            await _grid.RefreshAsync();
+        }
+    }
+
+    private void OnFetchError(Exception exception) => _fetchError = exception.Message;
+}
