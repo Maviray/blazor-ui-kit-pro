@@ -1,0 +1,12 @@
+{
+  "name": "maviray-grid",
+  "displayName": "Maviray Grid",
+  "description": "Teaches Claude to use MaviGrid in a consuming Blazor app: server-paged grids from a model class, paging, sorting, filtering, column widths, menus, selection, access control and audit.",
+  "author": {
+    "name": "Maviray",
+    "url": "https://github.com/Maviray"
+  },
+  "homepage": "https://github.com/Maviray/blazor-ui-kit-pro",
+  "repository": "https://github.com/Maviray/blazor-ui-kit-pro",
+  "keywords": ["blazor", "datagrid", "maviray", "dotnet"]
+}

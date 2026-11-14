@@ -1,0 +1,14 @@
+{
+  "extraKnownMarketplaces": {
+    "maviray": {
+      "source": {
+        "source": "github",
+        "repo": "Maviray/claude-plugins"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "maviray-material@maviray": true,
+    "maviray-grid@maviray": true
+  }
+}

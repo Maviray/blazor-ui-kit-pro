@@ -289,3 +289,32 @@ Render the grid in an interactive render mode. The sample app (`src/Maviray.Blaz
 - `/scoped` — a global filter;
 - `/property-mapping` — path maps and includes;
 - `/access` — access policies and observers.
+
+## Claude Code skills
+
+The `maviray-grid` plugin teaches Claude Code how to use MaviGrid, and `maviray-material` covers the Material components
+it builds on. Both come from the Maviray marketplace
+([Maviray/claude-plugins](https://github.com/Maviray/claude-plugins)). To give your whole team the skills, commit this
+to your project's `.claude/settings.json`:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "maviray": { "source": { "source": "github", "repo": "Maviray/claude-plugins" } }
+  },
+  "enabledPlugins": {
+    "maviray-material@maviray": true,
+    "maviray-grid@maviray": true
+  }
+}
+```
+
+Each developer then trusts the folder when Claude Code asks, and installs the plugins once in their clone:
+
+```
+claude plugin install maviray-material@maviray --scope project
+claude plugin install maviray-grid@maviray --scope project
+```
+
+The skills follow this repo's `main` branch, which matches the latest released packages. `claude plugin update
+maviray-grid@maviray` picks up a newer version. The skill sources are in [plugins/maviray-grid](plugins/maviray-grid).
