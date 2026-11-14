@@ -89,6 +89,36 @@ public sealed class DocFormattingModel : IGridCollectionModel<DbSampleItemOne, i
     public IEnumerable<IMaviRowContextMenuItem<int>> GetContextActions() => [];
 }
 
+/// <summary>
+/// The column-width demo: [GridStretch] on the model makes Name and the related item's columns share the free width.
+/// </summary>
+public sealed class DocStretchModel : IGridCollectionModel<DbSampleItemOne, int>
+{
+    [GridDataProperty(1)]
+    public int Id { get; set; }
+
+    [GridDataProperty(2, MaviGridColumnCellBehavior.Navigational)]
+    [GridStretch(2)]
+    public string? Name { get; set; }
+
+    [Display(Name = "Amount")]
+    [GridDataProperty(3)]
+    public int Integer { get; set; }
+
+    // On a navigation property, the mark applies to each of its nested columns (here, Details).
+    [GridNavProperty(4)]
+    [GridStretch]
+    public DocDetailsModel? DbSampleItemTwo { get; set; }
+
+    public int Key => Id;
+
+    public void ConstructFrom(DbSampleItemOne dataItem)
+    {
+    }
+
+    public IEnumerable<IMaviRowContextMenuItem<int>> GetContextActions() => [];
+}
+
 /// <summary>The related entity's columns: each [GridNestedProperty] becomes a column keyed "DbSampleItemTwo.Property".</summary>
 public sealed class DocDetailsModel
 {

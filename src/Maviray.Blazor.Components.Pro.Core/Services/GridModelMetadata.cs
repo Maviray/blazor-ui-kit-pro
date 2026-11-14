@@ -83,18 +83,22 @@ internal sealed class GridModelMetadata<TDataItem, TModel>
         {
             if (property.GetCustomAttribute<GridDataPropertyAttribute>() is { } data)
             {
-                descriptors.Add(Describe(property, property.Name, DisplayName(property) ?? property.Name, data.Sequence, data.CellBehavior, navigation: null));
+                var stretch = StretchWeight(property, property.Name) ?? 0;
+                descriptors.Add(Describe(property, property.Name, DisplayName(property) ?? property.Name, data.Sequence, data.CellBehavior, stretch, navigation: null));
             }
             else if (property.GetCustomAttribute<GridNavPropertyAttribute>() is { } navigation)
             {
                 includes.Add(property.Name);
                 var navigationGetter = CompileGetter(property);
+                var navigationStretch = StretchWeight(property, property.Name);
 
                 foreach (var nested in property.PropertyType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
                 {
                     if (nested.GetCustomAttribute<GridNestedPropertyAttribute>() is { } nestedColumn)
                     {
-                        descriptors.Add(Describe(nested, $"{property.Name}.{nested.Name}", nestedColumn.Title, navigation.Sequence, navigation.CellBehavior, navigationGetter));
+                        var key = $"{property.Name}.{nested.Name}";
+                        var stretch = StretchWeight(nested, key) ?? navigationStretch ?? 0;
+                        descriptors.Add(Describe(nested, key, nestedColumn.Title, navigation.Sequence, navigation.CellBehavior, stretch, navigationGetter));
                     }
                 }
             }
@@ -104,8 +108,24 @@ internal sealed class GridModelMetadata<TDataItem, TModel>
         return (descriptors.OrderBy(d => d.Sequence).ToArray(), includes.ToArray());
     }
 
+    /// <summary>
+    /// The property's <see cref="GridStretchAttribute"/> weight, or <see langword="null"/> when it has none. An invalid
+    /// weight throws, naming the model and <paramref name="name"/> (<c>Name</c>, or <c>Navigation.Name</c> when nested).
+    /// </summary>
+    private static int? StretchWeight(PropertyInfo property, string name)
+    {
+        if (property.GetCustomAttribute<GridStretchAttribute>() is not { } stretch)
+        {
+            return null;
+        }
+
+        return stretch.Weight >= 1
+            ? stretch.Weight
+            : throw new InvalidOperationException($"{typeof(TModel).Name}.{name}: [GridStretch] weight must be at least 1, not {stretch.Weight}.");
+    }
+
     private static GridColumnDescriptor Describe(
-        PropertyInfo property, string key, string title, int sequence, MaviGridColumnCellBehavior behavior, Func<object, object?>? navigation)
+        PropertyInfo property, string key, string title, int sequence, MaviGridColumnCellBehavior behavior, int stretchWeight, Func<object, object?>? navigation)
     {
         var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
         var booleans = property.GetCustomAttribute<GridBooleanDisplayValuesAttribute>();
@@ -119,6 +139,7 @@ internal sealed class GridModelMetadata<TDataItem, TModel>
             CellBehavior = behavior,
             PropertyType = Categorize(type),
             GraphicDisplay = property.GetCustomAttribute<GridAdvancedDisplayAttribute>() is not null,
+            StretchWeight = stretchWeight,
             TrueText = booleans?.TrueText ?? bool.TrueString,
             FalseText = booleans?.FalseText ?? bool.FalseString,
             DateTimeFormat = property.GetCustomAttribute<GridDateTimeFormatAttribute>()?.Format,
@@ -253,6 +274,7 @@ internal sealed class GridColumnDescriptor
     public required MaviGridPropertyType PropertyType { get; init; }
     public required MaviGridColumnCellBehavior CellBehavior { get; init; }
     public required bool GraphicDisplay { get; init; }
+    public required int StretchWeight { get; init; }
     public required string TrueText { get; init; }
     public required string FalseText { get; init; }
     public required string? DateTimeFormat { get; init; }
@@ -303,6 +325,7 @@ internal sealed class GridColumnDescriptor
         PropertyType = PropertyType,
         CellBehavior = CellBehavior,
         GraphicDisplay = GraphicDisplay,
+        StretchWeight = StretchWeight,
         Sortable = resolvable,
         Filterable = resolvable,
         TrueText = TrueText,

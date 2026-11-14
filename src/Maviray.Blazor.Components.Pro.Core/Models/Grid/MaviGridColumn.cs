@@ -22,6 +22,12 @@ public sealed class MaviGridColumn
     /// <summary>Cells render as badges coloured by their <see cref="MaviGridCell.ThemeColorScheme"/>.</summary>
     public bool GraphicDisplay { get; init; }
 
+    /// <summary>
+    /// The column's share of the grid's free width relative to other stretching columns, from
+    /// <see cref="Attributes.Grid.GridStretchAttribute"/>; 0 for a column that keeps its width.
+    /// </summary>
+    public int StretchWeight { get; init; }
+
     /// <summary>The column resolves to a data item path, so the grid may sort by it.</summary>
     public bool Sortable { get; init; }
 
@@ -47,6 +53,7 @@ public sealed class MaviGridColumn
         PropertyType = PropertyType,
         CellBehavior = CellBehavior,
         GraphicDisplay = GraphicDisplay,
+        StretchWeight = StretchWeight,
         Sortable = Sortable,
         Filterable = Filterable,
         TrueText = TrueText,

@@ -79,6 +79,18 @@ public class MaviGridRenderingTests : MaviGridTestContext
     }
 
     [Fact]
+    public void PagerArrows_AreTheLeftAndRightChevrons()
+    {
+        var grid = RenderGrid(new RecordingFetch(1).Invoke);
+
+        Assert.NotNull(grid.Find("[data-page-prev] .lni-chevron-left"));
+        Assert.NotNull(grid.Find("[data-page-next] .lni-chevron-right"));
+        Assert.Empty(grid.FindAll("[data-pager] .lni-flip-x"));
+        // Free LineIcons 5.0 has no lni-chevron-right glyph: the button must still say what it does.
+        Assert.Equal("Go to next page", grid.Find("[data-page-next] [title]").GetAttribute("title"));
+    }
+
+    [Fact]
     public void Container_ReportsBusyWhileFetching()
     {
         var pending = new TaskCompletionSource<Core.Models.Grid.MaviGridCollection<int>>();

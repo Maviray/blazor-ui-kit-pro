@@ -65,6 +65,9 @@ builder.Services.AddMaviGrid()            // options: RequireExplicitAllow, MaxP
 <!-- and <Routes @rendermode="InteractiveServer" /> (or WebAssembly / Auto) -->
 ```
 
+The pager's next-page icon (`lni-chevron-right`) is in LineIcons Pro only: with the free 5.0 stylesheet the button
+has no arrow. Load the app's LineIcons Pro stylesheet if it has one.
+
 `_Imports.razor`: `Maviray.Blazor.Components.Pro.Grid.UI.Components` (MaviGrid, MaviGridParameters),
 `…Pro.Core.Models.Grid` (MaviGridQuery, MaviGridCollection, GridFetchOptions), `…Pro.Core.Interfaces.Grid`
 (IGridDataFactory). Full namespace table: `references/api.md`.
@@ -133,6 +136,11 @@ Every parameter, method, option, attribute and type, with defaults: `references/
 | totals stale after your own edits | call `RefreshAsync()`: page clicks reuse the known total |
 | grid shows "Data could not be loaded" | `FetchData` threw; handle `OnFetchError`, check the log |
 | `OptionsValidationException` at startup | `MaxPageSize` is below 1 |
+| columns bunched at the left of a wide card, spare width in the ⋯ column | mark the column that should take it `[GridStretch]` (or set `StretchColumns`); it grows once the other columns reach 200px |
+| `[GridStretch]` / `StretchColumns` seem to do nothing | the grid is too narrow: other columns get up to 200px first; or a `StretchColumns` key isn't a column key (ignored silently) |
+| grid doesn't fill its card, or should shrink | `FillWidth` (default `true`), not a `block` / `inline-block` class: those resolve by stylesheet order |
+| next-page button has no arrow | free LineIcons 5.0 has no `lni-chevron-right`; load LineIcons Pro |
+| `[GridStretch] weight must be at least 1` / `ArgumentOutOfRangeException` on `StretchColumns` | use weights ≥ 1 |
 
 ## Rules
 

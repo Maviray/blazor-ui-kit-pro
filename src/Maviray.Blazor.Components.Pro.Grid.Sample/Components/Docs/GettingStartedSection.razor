@@ -37,7 +37,7 @@
         new("AddDbContextFactory<TDbContext>()", "Program.cs", "", "The EF data source opens a short-lived context for each query. Grids fetch at the same time, so a single scoped DbContext isn't enough."),
         new("AddMaviGrid()", "Program.cs", "", "Registers IGridDataFactory<TDataItem, TModel, TKey> for any entity and model, and the grid options."),
         new(".AddEntityFrameworkDataSource<TDbContext>()", "Program.cs", "", "Tells the factory how to count and load rows: with EF Core, through that context."),
-        new("Grid and Material stylesheets, Lineicons, maviJsInterop.js", "App.razor <head>", "", "The grid's styles, the theme's colours, the icons, and the script that closes menus on a click elsewhere."),
+        new("Grid and Material stylesheets, Lineicons, maviJsInterop.js", "App.razor <head>", "", "The grid's styles, the theme's colours, the icons, and the script that closes menus on a click elsewhere. The pager's next-page arrow (lni-chevron-right) is in LineIcons Pro; with the free 5.0 stylesheet that button shows no arrow."),
         new("Fonts (Lato, Montserrat)", "App.razor <head>", "", "Optional: the theme's fonts. Without them text uses system fonts."),
         new("Interactive render mode", "App.razor or the page", "", "The grid only responds to clicks and typing when interactive (Server, WebAssembly or Auto)."),
         new("@using namespaces", "_Imports.razor", "", "MaviGrid, MaviGridParameters, MaviGridQuery, MaviGridCollection, IGridDataFactory."),
