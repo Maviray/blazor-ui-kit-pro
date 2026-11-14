@@ -1,47 +1,111 @@
-# blazor-ui-kit-pro
+# Maviray Blazor UI Kit Pro
 
-`MaviGrid` is a server-paged Blazor data grid for large tables. Every page, sort or filter change loads only the rows of
-the page being shown, with the sort and filters applied in the database. Access policies decide before every fetch who
-may read which rows, and fetch observers record what was shown.
+Blazor components for apps that work with large tables, built on the
+[Maviray Blazor UI Kit](https://github.com/Maviray/blazor-ui-kit).
+
+The kit has one component today: `MaviGrid`, a server-paged data grid. Every page, sort or filter change loads only the
+rows being shown, with the sort and filters applied in the database. You describe the columns once, with attributes on a
+model class. Access policies decide before every fetch who may read which rows, and fetch observers record what each
+user was shown.
+
+- **.NET 10**, for Blazor apps with interactive rendering. EF Core works out of the box, and any other store plugs in
+  through one interface
+- **Fast on large tables**: paging, sorting and filtering run in the database, next and previous pages seek from the
+  last row instead of skipping rows, and the total is counted once per set of filters
+- **Columns from a model**: attributes set each column's header, format, badge colour and width, and sorting and
+  filtering follow from the model
+- **Access control and audit**: allow, deny or narrow every fetch per user, and record which rows each user saw
+- **Matches the UI Kit**: built from its Material components and theme. The packages ship prebuilt CSS, so using the
+  grid needs no Node.js and no Tailwind build
+
+## Packages
 
 | Package | Contents |
 |---|---|
-| `Maviray.Blazor.Components.Pro.Core` | Grid models and attributes, the data factory, access policies, fetch observers, DI |
+| `Maviray.Blazor.Components.Pro.Grid.UI` | The `MaviGrid` component and its stylesheet. **Install this one**, plus a data source. |
 | `Maviray.Blazor.Components.Pro.Grid.EntityFramework` | The EF Core data source |
-| `Maviray.Blazor.Components.Pro.Grid.UI` | The `MaviGrid` component |
+| `Maviray.Blazor.Components.Pro.Core` | Grid models and attributes, the data factory, access policies, fetch observers and service registration. Installed with either package above. |
 
-## How a page is fetched
+The packages also install the UI Kit's `Maviray.Blazor.Components.Material` and `Maviray.Blazor.Components.Core`.
 
-```
-MaviGrid ──(MaviGridQuery, CancellationToken)──► your FetchData
-  IGridDataFactory.BuildPageAsync
-    1. access policies             deny → a column-only "access denied" page, no database call
-    2. one combined filter         column filters AND grid filter AND global filters AND policy row filters
-    3. IGridDataSource.CountAsync
-    4. IGridDataSource.GetPageAsync   skipped when the count is 0; ORDER BY … key, LIMIT/OFFSET, values as parameters
-    5. map rows to the model, format cells with cached getters
-    6. fetch observers             the keys of the rows loaded
-  ◄── MaviGridCollection<TKey>
-```
+## Components
 
-What keeps it fast on large tables:
+| Component | What it is |
+|---|---|
+| `MaviGrid<TKey>` | Server-paged data grid: sortable headers, a filter row, a pager with page-size choices, row checkboxes whose selection survives paging, a column chooser, header and row action menus, clickable cells, badge cells, stretching columns, and built-in empty, loading, access-denied and error states |
 
-- **Only the page is loaded.** The EF source runs `COUNT` and one `ORDER BY … OFFSET/FETCH` query, without change
-  tracking, on a short-lived context.
-- **Stable paging.** The order always ends with the primary key, so rows with equal sort values never repeat or go
-  missing between pages.
-- **One query plan per grid.** Filter values are sent as SQL parameters, not literals.
-- **Cheap rows.** Column metadata, compiled property getters and the entity-to-model mapping are built once per model
-  type; column lists are cached per grid. Cells are value types.
-- **Cheap rendering.** The grid re-renders only when what it shows changes. Typing in a filter or opening a menu doesn't
-  redraw the rows, and each row redraws only when its data, selection or menu changes.
-- **Nothing wasted.** A newer fetch cancels the one in flight, and the grid can skip the prerender fetch.
+Behind the grid are services you register once and extend:
+
+| Type | What it does |
+|---|---|
+| `IGridDataFactory<TDataItem, TModel, TKey>` | Builds one page: checks access, combines the filters, counts, loads the rows, maps them to your model and formats the cells |
+| `GridPageBuilder<TDataItem, TModel, TKey>` | Builds the same page from rows your own service loaded, for apps with a service layer of their own |
+| `AddEntityFrameworkDataSource<TDbContext>()` | The EF Core data source, for every entity type in the context |
+| `IGridDataSource<T>`, `IGridKeysetDataSource<T>` | Plug in another store, with or without keyset paging |
+| `IGridAccessPolicy`, `GridAccessPolicy<T>` | Allow, deny or narrow a fetch before it runs |
+| `IGridFetchObserver` | Told about every page loaded and every denied fetch, for audit |
+| `IGridGlobalFilterProvider` | One constraint for every grid, such as "not soft-deleted" |
+| `[GridDataProperty]` and the other [column attributes](#columns) | Turn a model's properties into columns |
+
+Forms, buttons, dialogs, menus and the other general-purpose components are in the UI Kit. See its
+[component list](https://github.com/Maviray/blazor-ui-kit#components).
+
+## Installation
+
+The packages are published to GitHub Packages, which needs a GitHub token even to download them. If your app already
+uses the UI Kit, steps 1 to 3 are done.
+
+1. Create a GitHub personal access token (classic) with the `read:packages` scope.
+2. Store it once per machine. Run this **outside any repository**: inside one, the command writes the token into that
+   repository's `nuget.config`.
+
+   ```bash
+   dotnet nuget add source "https://nuget.pkg.github.com/Maviray/index.json" --name maviray --username YOUR_GITHUB_USERNAME --password YOUR_TOKEN
+   ```
+
+   On macOS and Linux, add `--store-password-in-clear-text`; Windows encrypts the password.
+3. In your app's repository, add a `nuget.config` that takes Maviray packages from that feed and everything else from
+   nuget.org. Restores then work the same on every machine, and central package management doesn't warn about several
+   feeds (NU1507). The `maviray` key must match the name used in step 2, which is how NuGet finds the token.
+
+   ```xml
+   <?xml version="1.0" encoding="utf-8"?>
+   <configuration>
+     <packageSources>
+       <clear />
+       <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+       <add key="maviray" value="https://nuget.pkg.github.com/Maviray/index.json" />
+     </packageSources>
+     <packageSourceMapping>
+       <packageSource key="nuget.org">
+         <package pattern="*" />
+       </packageSource>
+       <packageSource key="maviray">
+         <package pattern="Maviray.*" />
+       </packageSource>
+     </packageSourceMapping>
+   </configuration>
+   ```
+
+4. Add the packages:
+
+   ```bash
+   dotnet add package Maviray.Blazor.Components.Pro.Grid.UI
+   dotnet add package Maviray.Blazor.Components.Pro.Grid.EntityFramework
+   ```
+
+In GitHub Actions, add the source with `${{ secrets.GITHUB_TOKEN }}` as the password and give the job
+`permissions: packages: read`.
 
 ## Quick start
 
-**1. Register services**
+**1. Register the services** in `Program.cs`:
 
 ```csharp
+using Maviray.Blazor.Components.Core.Extensions;
+using Maviray.Blazor.Components.Pro.Core.Extensions;
+using Maviray.Blazor.Components.Pro.Grid.EntityFramework.Extensions;
+
 builder.Services.AddMaviComponents();
 builder.Services.AddDbContextFactory<AppDbContext>(o => o.UseSqlServer(connectionString)); // or AddPooledDbContextFactory
 
@@ -49,7 +113,21 @@ builder.Services.AddMaviGrid()
     .AddEntityFrameworkDataSource<AppDbContext>();
 ```
 
-**2. Describe the columns on a grid model**
+**2. Add the assets** to the `<head>` of `App.razor`:
+
+```html
+<link rel="stylesheet" href="_content/Maviray.Blazor.Components.Pro.Grid.UI/css/maviray.grid.min.css" />
+<link rel="stylesheet" href="_content/Maviray.Blazor.Components.Material/css/maviray.material.min.css" />
+<link rel="stylesheet" href="https://cdn.lineicons.com/5.0/lineicons.css" />
+<script src="_content/Maviray.Blazor.Components.Material/js/maviJsInterop.js"></script>
+```
+
+The theme's fonts aren't bundled. Load Lato, Montserrat, Oswald and Roboto Serif, for example from Google Fonts.
+
+The pager's next-page icon, `lni-chevron-right`, is in LineIcons Pro. The free LineIcons 5.0 stylesheet above doesn't
+have it, so there the button shows no arrow (its tooltip still works). Load a LineIcons Pro stylesheet to see it.
+
+**3. Describe the columns on a grid model**
 
 ```csharp
 public class OrderGridModel : IGridCollectionModel<Order, int>
@@ -70,7 +148,7 @@ public class OrderGridModel : IGridCollectionModel<Order, int>
 }
 ```
 
-**3. Show the grid**
+**4. Show the grid** in a component with an interactive render mode:
 
 ```razor
 <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_parameters" OnCellClick="OpenOrder" />
@@ -92,6 +170,40 @@ public class OrderGridModel : IGridCollectionModel<Order, int>
 ```
 
 Pass the cancellation token through. The grid cancels it when a newer fetch starts or the grid is disposed.
+
+## How a page is fetched
+
+```
+MaviGrid ──(MaviGridQuery, CancellationToken)──► your FetchData
+  IGridDataFactory.BuildPageAsync
+    1. access policies             deny → a column-only "access denied" page, no database call
+    2. one combined filter         column filters AND grid filter AND global filters AND policy row filters
+    3. IGridDataSource.CountAsync  skipped when the grid already has the total for these filters
+    4. load the page               skipped when the count is 0; ORDER BY … key, then seek from a cursor or OFFSET
+    5. map rows to the model, format cells with cached getters
+    6. fetch observers             the keys of the rows loaded
+  ◄── MaviGridCollection<TKey>
+```
+
+What keeps it fast on large tables:
+
+- **Only the page is loaded.** The EF source runs a count and one page query, without change tracking, on a
+  short-lived context. Set `GridFetchOptions.Projection` to select only the shown columns instead of whole entities.
+- **Next and previous seek.** Moving one page on, the grid sends a cursor and the EF source seeks from the last row
+  seen (`WHERE … > …`) instead of skipping rows (`OFFSET`), so page 5,000 costs the same as page 2. Jumping to a page
+  number skips as usual. Seeking needs a sort on a column of the entity itself that isn't null (or has a null default).
+- **One count per filter.** When only the page, the page size or the sort changes, the grid sends the total it has and
+  the factory skips the count. It counts again when the filters change, on `RefreshAsync()`, and when a page doesn't
+  hold the number of rows the total predicts.
+- **Stable paging.** The order always ends with the primary key, so rows with equal sort values never repeat or go
+  missing between pages.
+- **One query plan per grid.** Filter values are sent as SQL parameters, not literals.
+- **Cheap rows.** Column metadata, compiled property getters and the entity-to-model mapping are built once per model
+  type; column lists are cached per grid. Cells are value types.
+- **Cheap rendering.** The grid re-renders only when what it shows changes. Typing in a filter or opening a menu doesn't
+  redraw the rows, and each row redraws only when its data, selection or menu changes.
+- **Nothing wasted.** A newer fetch cancels the one in flight. The grid can reuse the page it fetched while
+  prerendering (`PrerenderedPageKey`) or skip that fetch (`FetchWhilePrerendering = false`).
 
 ## Columns
 
@@ -127,6 +239,7 @@ factory reuses the columns it built for them.
 | `Filter` | a row constraint for this grid, AND-combined with everything else |
 | `Include` | `Include(…).ThenInclude(…)` so `ConstructFrom` sees the related data |
 | `PropertyPathMap` | data item paths for computed columns, optionally with a null default (`?? false`) |
+| `Projection` | select only the shown columns instead of whole entities with their includes; list any other member `ConstructFrom` reads with `.Load(x => x.Notes)` |
 | `CellThemes` | badge colour per graphic column: `value => ThemeColorScheme` |
 | `AccessTag` | a tag passed to access policies and observers; no meaning to the grid |
 
@@ -140,6 +253,13 @@ implement `IGridDataSource<TDataItem>` and register it for that type, or as an o
 - `GetPageAsync(query, ct)` applies includes, filter and sort, then `Skip`/`Take`, and returns materialized rows;
 - keep it stateless (open and close connections inside each call);
 - order deterministically: break ties with a unique key, or paging repeats and skips rows. `ThenByDynamic` helps.
+
+To seek instead of skip, implement `IGridKeysetDataSource<TDataItem>` too. `GridKeyset<T>` implements the ordering,
+the cursors and the seek over an `IQueryable<T>`.
+
+When your app loads data through its own service layer (DTOs, its own authorization), skip the factory: call the
+service from `FetchData` and turn its result into a page with `GridPageBuilder<TDataItem, TModel, TKey>`, which gives
+the same columns, cells and formatting. The sample app's `/docs` page shows it.
 
 EF tips: use `AddPooledDbContextFactory` for high traffic, and configure
 `UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)` when grids include collection navigations.
@@ -222,7 +342,8 @@ An `IGridFetchObserver` is told about every fetch:
 
 Observers run inside the fetch, and their exceptions fail it. For best-effort audit, catch inside the observer and hand
 the record to a background queue (`Channel<T>` plus a hosted service) instead of writing to the store inline. With
-prerendering on, each page view fetches twice. Set `FetchWhilePrerendering = false` so the audit records one view.
+prerendering on, each page view fetches twice. Set `PrerenderedPageKey` (or `FetchWhilePrerendering = false`) so the
+audit records one view.
 
 ## Global filters
 
@@ -230,7 +351,7 @@ prerendering on, each page view fetches twice. Set `FetchWhilePrerendering = fal
 It only narrows rows and never grants access. Register it with `.AddGlobalFilter<T>()`. For tenant isolation across
 every query, not only grids, also consider EF Core query filters.
 
-## `MaviGrid<TKey>`
+## `MaviGrid<TKey>` reference
 
 | Parameter | Type | Purpose |
 |---|---|---|
@@ -241,6 +362,7 @@ every query, not only grids, also consider EF Core query filters.
 | `OnRowContextMenuClick` | `EventCallback<IMaviRowContextMenuItem<TKey>>` | row action clicked |
 | `OnCellClick` | `EventCallback<CellClickParameters<TKey>>` | cell clicked (`RowKey`, `ColumnKey`, `CellBehavior`) |
 | `OnFetchError` | `EventCallback<Exception>` | a fetch failed, for example to hand it to an error boundary |
+| `PrerenderedPageKey` | `string?` | a key unique among the grids on the page; the interactive grid starts from the page fetched while prerendering, so a page view queries and audits once |
 | `NoDataContent`, `AccessDeniedContent`, `FetchErrorContent`, `PrerenderContent` | `RenderFragment` | replace the built-in states |
 
 Exceptions thrown by your own callbacks reach your error boundary. A cancellation caused by the grid itself is never
@@ -268,27 +390,23 @@ reported as an error.
 | `StretchColumns` | `null` | column key → weight; replaces the model's `[GridStretch]` marks for this grid (assign a new dictionary to change it) |
 | `FillWidth` | `true` | fill the parent's width; `false` shrinks the grid to its columns |
 
-`GridDataFactoryOptions.MaxPageSize` (default 100) caps the page size the factory loads. The pager shows the page size
-the server applied, even if it isn't one of the `PageSizeOptions`.
+**`GridDataFactoryOptions`**, set with `AddMaviGrid(o => …)`:
 
-## Host setup
+| Option | Default | Effect |
+|---|---|---|
+| `MaxPageSize` | `100` | caps the page size the factory loads. The pager shows the size the server applied, even if it isn't one of the `PageSizeOptions` |
+| `ReuseTotalRows` | `true` | skip the count when only the page, page size or sort changed. Rows added or removed elsewhere can leave the total stale until the filters change or the grid refreshes |
+| `RequireExplicitAllow` | `false` | deny a fetch that no access policy allows |
 
-```html
-<link rel="stylesheet" href="_content/Maviray.Blazor.Components.Pro.Grid.UI/css/maviray.grid.min.css" />
-<link rel="stylesheet" href="_content/Maviray.Blazor.Components.Material/css/maviray.material.min.css" />
-<link rel="stylesheet" href="https://cdn.lineicons.com/5.0/lineicons.css" />
-<script src="_content/Maviray.Blazor.Components.Material/js/maviJsInterop.js"></script>
-```
+## Sample app
 
-The pager's next-page icon, `lni-chevron-right`, is in LineIcons Pro. The free LineIcons 5.0 stylesheet above doesn't
-have it, so there the button shows no arrow (its tooltip still works). Load a LineIcons Pro stylesheet to see it.
+`src/Maviray.Blazor.Components.Pro.Grid.Sample` runs on an in-memory database, so it needs no database server:
 
-Render the grid in an interactive render mode. The sample app (`src/Maviray.Blazor.Components.Pro.Grid.Sample`) shows:
-
-- `/` — menus, badges and selection;
-- `/scoped` — a global filter;
-- `/property-mapping` — path maps and includes;
-- `/access` — access policies and observers.
+- `/docs`: the documentation page, with every feature as a live grid and its code;
+- `/`: menus, badges and selection;
+- `/scoped`: a global filter;
+- `/property-mapping`: path maps and includes;
+- `/access`: access policies and observers.
 
 ## Claude Code skills
 
@@ -317,4 +435,38 @@ claude plugin install maviray-grid@maviray --scope project
 ```
 
 The skills follow this repo's `main` branch, which matches the latest released packages. `claude plugin update
-maviray-grid@maviray` picks up a newer version. The skill sources are in [plugins/maviray-grid](plugins/maviray-grid).
+maviray-grid@maviray` picks up a newer version. The skill sources are in
+[plugins/maviray-grid](https://github.com/Maviray/blazor-ui-kit-pro/tree/main/plugins/maviray-grid).
+
+## Building from source
+
+You need the .NET 10 SDK (see `global.json`) and Node.js with npm: the grid and sample projects rebuild their Tailwind
+CSS after each build.
+
+Restoring needs the GitHub token from [Installation](#installation). This repository's `nuget.config` names the feed
+`github`, and NuGet finds the token by that name, so run step 2 with `--name github`. NuGet won't register the same feed
+twice, so if you've already registered it under another name, set the environment variable
+`NuGetPackageSourceCredentials_github` to `Username=YOUR_GITHUB_USERNAME;Password=YOUR_TOKEN` instead.
+
+```bash
+dotnet build Maviray.Blazor.Components.Pro.slnx
+dotnet test
+dotnet run --project src/Maviray.Blazor.Components.Pro.Grid.Sample
+```
+
+`dotnet test` runs all three test projects. The last command starts the [sample app](#sample-app).
+
+## Status
+
+The library is under active development and still below 1.0, so an update can contain breaking changes. Each
+release's changes are in its [release notes](https://github.com/Maviray/blazor-ui-kit-pro/releases).
+
+## Contributing
+
+Issues and pull requests are welcome.
+
+## License
+
+[MIT](https://github.com/Maviray/blazor-ui-kit-pro/blob/main/LICENSE.txt). You can use, modify and distribute the
+library for free, including commercially. Keep the copyright notice (Copyright (c) 2026 Maviray) and the license text
+in copies of the library.

@@ -16,13 +16,15 @@
 	  <Version>1.0.0</Version>
 	  <Authors>Maviray</Authors>
 	  <Company>Maviray</Company>
-	  <Copyright>Copyright @2026 Maviray</Copyright>
+	  <Copyright>Copyright (c) 2026 Maviray</Copyright>
 	  <Description>Blazor Grid UI</Description>
 	  <PackageTags>blazor;grid;ui;maviray</PackageTags>
 	  <RepositoryUrl>https://github.com/Maviray/blazor-ui-kit-pro</RepositoryUrl>
 	  <PackageProjectUrl>https://github.com/Maviray/blazor-ui-kit-pro</PackageProjectUrl>
 	  <RepositoryType>git</RepositoryType>
-	  <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+	  <!-- An SPDX expression, so package feeds and license scanners recognize MIT. LICENSE.txt still ships in the
+	       package (below), keeping the copyright notice MIT requires in every copy. -->
+	  <PackageLicenseExpression>MIT</PackageLicenseExpression>
 	  <PackageReadmeFile>README.md</PackageReadmeFile>
 	  <PackageIcon>icon.png</PackageIcon>
 	  <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
