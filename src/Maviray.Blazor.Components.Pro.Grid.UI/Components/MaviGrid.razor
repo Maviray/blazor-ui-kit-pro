@@ -11,7 +11,8 @@
     var view = Layout;
 }
 
-<div data-grid id="@Id" class="inline-block max-w-full rounded-xl border border-zinc-200 text-sm min-h-40 relative @Class" style="overflow:auto;@Style" aria-busy="@(_busy ? "true" : "false")">
+@* A parameter, not a consumer class: block and inline-block on one element resolve by stylesheet order. *@
+<div data-grid id="@Id" class="@(Parameters.FillWidth ? "block w-full" : "inline-block max-w-full") rounded-xl border border-zinc-200 text-sm min-h-40 relative @Class" style="overflow:auto;@Style" aria-busy="@(_busy ? "true" : "false")">
     @if (_busy)
     {
         <div class="absolute inset-0 z-40 flex items-center justify-center bg-white/60">
@@ -62,7 +63,7 @@
     }
     else if (_page is not null)
     {
-        <div class="grid divide-y divide-zinc-200" style="@view.GridStyle">
+        <div data-grid-body class="grid divide-y divide-zinc-200" style="@view.GridStyle">
             @foreach (var column in view.Columns)
             {
                 <div data-column-header class="@view.HeaderCellCss">

@@ -67,7 +67,7 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
     private MaviGridLayout _layout = MaviGridLayout.Empty;
     private bool _layoutDirty = true;
     private int _layoutVersion;
-    private (bool, bool, bool, bool, TableRowContextMenuDisplayStyle, int) _appliedSettings;
+    private (bool, bool, bool, bool, TableRowContextMenuDisplayStyle, int, IReadOnlyDictionary<string, int>?) _appliedSettings;
 
     private DotNetObjectReference<MaviGrid<TKey>>? _dotNetRef;
     private bool _disposed;
@@ -270,11 +270,19 @@ public partial class MaviGrid<TKey> : IHandleEvent, IAsyncDisposable where TKey 
 
     private void ApplySettings()
     {
+        // StretchColumns compares by reference: a new dictionary rebuilds the layout, one changed in place doesn't.
         var settings = (Parameters.Condensed, Parameters.Striped, Parameters.DisplaySelectColumn, Parameters.EnableFilters,
-            Parameters.TableRowContextMenuDisplayStyle, Parameters.MaxCellCharsToDisplay);
+            Parameters.TableRowContextMenuDisplayStyle, Parameters.MaxCellCharsToDisplay, Parameters.StretchColumns);
 
         if (settings != _appliedSettings)
         {
+            // Checked here, not while rendering, and before the settings count as applied.
+            if (Parameters.StretchColumns?.FirstOrDefault(c => c.Value < 1) is { Key: not null } invalid)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MaviGridParameters.StretchColumns), invalid.Value,
+                    $"Column '{invalid.Key}' has stretch weight {invalid.Value}; a weight must be at least 1.");
+            }
+
             _appliedSettings = settings;
             _layoutDirty = true;
         }

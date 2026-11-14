@@ -15,6 +15,37 @@ public static class GridPages
 
     public static MaviGridCollection<int> Page(MaviGridQuery query, params int[] keys) => PageOf(query, keys.Length, keys);
 
+    /// <summary><see cref="Columns"/> with the given stretch weights (others 0), as a model's [GridStretch] marks give them.</summary>
+    public static IReadOnlyList<MaviGridColumn> Stretched(params (string Key, int Weight)[] weights) =>
+        Columns.Select(c => new MaviGridColumn
+        {
+            Key = c.Key,
+            Title = c.Title,
+            Index = c.Index,
+            Sequence = c.Sequence,
+            PropertyType = c.PropertyType,
+            Sortable = c.Sortable,
+            Filterable = c.Filterable,
+            StretchWeight = weights.FirstOrDefault(w => w.Key == c.Key).Weight
+        }).ToArray();
+
+    /// <summary>A page with the given columns (passed through as they are) and a cell "{column key} {row key}" for each.</summary>
+    public static MaviGridCollection<int> PageWith(IReadOnlyList<MaviGridColumn> columns, MaviGridQuery query, int totalRows, params int[] keys) => new()
+    {
+        Columns = columns,
+        Rows = keys.Select(key => new MaviGridRow<int>
+        {
+            Key = key,
+            Cells = columns.OrderBy(c => c.Index).Select(c => new MaviGridCell($"{c.Key} {key}")).ToArray()
+        }).ToArray(),
+        PageNumber = query.PageNumber,
+        PageSize = query.PageSize,
+        TotalRows = totalRows,
+        TotalPages = (totalRows + query.PageSize - 1) / query.PageSize,
+        SortColumnKey = query.SortColumnKey,
+        SortOrder = query.SortOrder
+    };
+
     public static MaviGridCollection<int> PageOf(MaviGridQuery query, int totalRows, params int[] keys) => new()
     {
         Columns = Columns,

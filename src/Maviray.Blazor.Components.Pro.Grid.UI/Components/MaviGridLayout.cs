@@ -2,6 +2,7 @@ using Maviray.Blazor.Components.Core.Enums;
 using Maviray.Blazor.Components.Material.Constants;
 using Maviray.Blazor.Components.Pro.Core.Enums.Grid;
 using Maviray.Blazor.Components.Pro.Core.Models.Grid;
+using System.Globalization;
 
 namespace Maviray.Blazor.Components.Pro.Grid.UI.Components;
 
@@ -36,8 +37,7 @@ internal sealed class MaviGridLayout
         _selectCss = [Cell(0, "justify-center"), Cell(1, "justify-center")];
         _actionsCss = [Cell(0, "justify-end"), Cell(1, "justify-end")];
 
-        var columnCount = columns.Count + 1 + (ShowSelect ? 1 : 0);
-        GridStyle = $"grid-template-columns: repeat({columnCount}, minmax(min-content, 200px))";
+        GridStyle = $"grid-template-columns: {Tracks(columns, parameters.StretchColumns, ShowSelect)}";
         HeaderCellCss = $"{spacing} truncate flex items-center justify-start";
         SelectHeaderCss = $"{spacing} truncate flex items-center justify-center";
         MenuCellCss = $"{spacing} truncate flex items-center justify-end";
@@ -109,6 +109,32 @@ internal sealed class MaviGridLayout
     {
         var visible = columns.Where(c => !hidden.Contains(c.Key)).OrderBy(c => c.Sequence).ThenBy(c => c.Index).ToArray();
         return new MaviGridLayout(visible, parameters, accessDenied);
+    }
+
+    /// <summary>
+    /// One track per rendered column: the visible data columns, the select column, the actions column. Stretching
+    /// columns share the free width by weight; when none is visible, the actions column takes it.
+    /// </summary>
+    private static string Tracks(IReadOnlyList<MaviGridColumn> visible, IReadOnlyDictionary<string, int>? overrides, bool showSelect)
+    {
+        const string fixedTrack = "minmax(min-content, 200px)";
+        var tracks = new List<string>(visible.Count + 2);
+        var anyStretch = false;
+
+        foreach (var column in visible)
+        {
+            var weight = overrides is null ? column.StretchWeight : overrides.GetValueOrDefault(column.Key);
+            anyStretch |= weight > 0;
+            tracks.Add(weight > 0 ? $"minmax(min-content, {weight.ToString(CultureInfo.InvariantCulture)}fr)" : fixedTrack);
+        }
+
+        if (showSelect)
+        {
+            tracks.Add(fixedTrack);
+        }
+
+        tracks.Add(anyStretch ? "min-content" : "minmax(min-content, 1fr)");
+        return string.Join(' ', tracks);
     }
 
     private static string CellExtra(MaviGridColumn column) =>
