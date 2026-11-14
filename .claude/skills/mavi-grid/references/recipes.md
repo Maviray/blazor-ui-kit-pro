@@ -19,8 +19,8 @@ Name, Phone, Region).
 
 ## Contents
 
-Sorting, paging, filtering · Row actions · Header menu · Cell clicks · Selection · Look and texts · Badges and
-formatting · Related data · Narrowing rows · States · Access and audit · Fast paging · Your own service · Custom data
+Sorting, paging, filtering · Row actions · Header menu · Cell clicks · Selection · Look and texts · Column widths ·
+Badges and formatting · Related data · Narrowing rows · States · Access and audit · Fast paging · Your own service · Custom data
 source · The grid model
 
 ## Sorting, paging, filtering
@@ -73,8 +73,8 @@ public IEnumerable<IMaviRowContextMenuItem<int>> GetContextActions() =>
 }
 ```
 
-`DropDown` (the default) puts the actions in a ⋯ menu per row. Icons are LineIcons 5 classes (`lni lni-…`); there is
-no `lni-chevron-right` in LineIcons 5.
+`DropDown` (the default) puts the actions in a ⋯ menu per row. Icons are LineIcons 5 classes (`lni lni-…`); the free
+LineIcons 5.0 set has no `lni-chevron-right` (Pro has it, and the grid's next-page button uses it).
 
 ## Header menu
 
@@ -168,6 +168,27 @@ private readonly MaviGridParameters _parameters = new()
 ```
 
 `Class` and `Style` on `<MaviGrid>` style its outer element. Use the `material-css-styling` skill for classes.
+
+## Column widths
+
+The grid fills its parent's width. Columns keep their width (up to 200px, more if the content needs it) unless they
+stretch; with no stretching column visible, the actions column takes the free width (⋯ at the right edge).
+
+```csharp
+// On the model: every grid of this model stretches these columns.
+[GridDataProperty(2)] [GridStretch]    public string? Name { get; set; }    // weight 1
+[GridDataProperty(4)] [GridStretch(2)] public string? Notes { get; set; }   // twice Name's share of the free width
+[GridNavProperty(5)]  [GridStretch]    public CustomerGridModel? Customer { get; set; }  // each nested column stretches
+
+// Per grid: replaces the model's marks for this grid only ({} = none stretch, so the actions column fills).
+private readonly MaviGridParameters _parameters = new() { StretchColumns = new Dictionary<string, int> { ["Name"] = 2, ["Customer.City"] = 1 } };
+
+// Shrink to the columns instead of filling the width.
+private readonly MaviGridParameters _compact = new() { FillWidth = false };
+```
+
+`StretchColumns` is read when the grid's parameters are set: assign a new dictionary to change it. A column hidden
+by the user or by an access policy gets no width; if every stretching column is hidden, the actions column fills again.
 
 ## Badges and formatting
 

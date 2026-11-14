@@ -262,6 +262,26 @@ internal static class DocSnippets
         }
         """;
 
+    public const string ColumnWidths = """
+        // On the grid model: every grid of this model stretches these columns.
+        [GridDataProperty(2)]
+        [GridStretch]                                          // weight 1
+        public string? Name { get; set; }
+
+        [GridDataProperty(4)]
+        [GridStretch(2)]                                       // twice Name's share of the free width
+        public string? Notes { get; set; }
+
+        // Or per grid: replaces the model's marks for this grid only.
+        private readonly MaviGridParameters _parameters = new()
+        {
+            StretchColumns = new Dictionary<string, int> { ["Name"] = 2, ["Date"] = 1 }
+        };
+
+        // A grid that shrinks to its columns instead of filling the width (the earlier look).
+        private readonly MaviGridParameters _compact = new() { FillWidth = false };
+        """;
+
     // 9. Badges and formatting
 
     public const string Formatting = """

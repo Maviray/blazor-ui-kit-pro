@@ -68,6 +68,8 @@ Everything the grid packages expose to app code. Recipes for each part: `recipes
 | `Condensed` | `bool` | `false` | Tighter cells, smaller text. |
 | `MaxCellCharsToDisplay` | `int` | `0` | Cut cell text with "..." (0: no limit); full text in the tooltip. |
 | `FetchWhilePrerendering` | `bool` | `true` | `false`: placeholder while prerendering, one fetch once interactive. |
+| `StretchColumns` | `IReadOnlyDictionary<string, int>?` | `null` | Column key → weight: these columns share the free width, replacing the model's `[GridStretch]` marks. `{}`: none stretch. Keys use the dictionary's comparer; unknown keys are ignored; weights ≥ 1 (else `ArgumentOutOfRangeException`). Assign a new dictionary to change it. |
+| `FillWidth` | `bool` | `true` | Fill the parent's width; `false`: shrink to the columns (stretching then has no visible effect). |
 | `ContentMenuTitle` | `string` | `"Actions"` | Tooltip of the ⋯ buttons. |
 | `NoDataAvailableTitle` | `string` | `"No data available to display"` | Empty state text. |
 | `AccessDeniedTitle` | `string?` | `"You do not have access to this data"` | Denied text when the policy gives none. |
@@ -119,6 +121,7 @@ Everything the grid packages expose to app code. Recipes for each part: `recipes
 | `[GridBooleanDisplayValues("Yes", "No")]` | bool | Cell text; also what the filter matches. |
 | `[GridDateTimeFormat("dd MMM yyyy")]` | date/time | Format (invariant). Defaults: `yyyy-MM-dd HH:mm:ss`, `DateOnly` `yyyy-MM-dd`. |
 | `[GridAdvancedDisplay]` | property | Badge coloured by `CellThemes`. |
+| `[GridStretch(weight = 1)]` | column property, or `[GridNavProperty]` (its nested columns; a nested member's own mark wins) | Shares the free width with other stretching columns, by weight. None visible: the actions column takes the free width. Weight < 1 throws `InvalidOperationException` on the model's first page. Sets `MaviGridColumn.StretchWeight`. |
 
 Column key = model property name (`Nav.Property` for nested). A column is sortable and filterable when it has a data
 item path: a same-named entity member, or a path map entry.

@@ -104,6 +104,11 @@ Pass the cancellation token through. The grid cancels it when a newer fetch star
 | `[GridBooleanDisplayValues(trueText, falseText)]` | bool property | cell and filter text |
 | `[GridDateTimeFormat(format)]` | date/time property | cell format (invariant culture) |
 | `[GridAdvancedDisplay]` | any column | renders as a badge coloured by `GridFetchOptions.CellThemes` |
+| `[GridStretch(weight = 1)]` | any column, or a navigation property (applies to its nested columns) | the column shares the free width with other stretching columns, by weight |
+
+**Column widths.** The grid fills its parent's width. Columns keep their width (up to 200px, more if the content needs
+it) unless they stretch. With no stretching column visible, the actions column takes the free width, so the ⋯ menu
+sits at the right edge. `MaviGridParameters.StretchColumns` chooses the stretching columns for one grid instead.
 
 **Sorting and filtering.** A column is sortable and filterable when it resolves to a data item path: either a member
 with the same name on the entity, or an entry in the `GridPropertyPathMap`. The factory accepts only these column keys;
@@ -258,6 +263,8 @@ reported as an error.
 | `Striped`, `Condensed`, `MaxCellCharsToDisplay` | `false`, `false`, `0` | look |
 | `NoDataAvailableTitle`, `AccessDeniedTitle`, `FetchErrorTitle` | built-in texts | state texts |
 | `FetchWhilePrerendering` | `true` | `false` shows a placeholder while prerendering and fetches once interactively |
+| `StretchColumns` | `null` | column key → weight; replaces the model's `[GridStretch]` marks for this grid (assign a new dictionary to change it) |
+| `FillWidth` | `true` | fill the parent's width; `false` shrinks the grid to its columns |
 
 `GridDataFactoryOptions.MaxPageSize` (default 100) caps the page size the factory loads. The pager shows the page size
 the server applied, even if it isn't one of the `PageSizeOptions`.
@@ -270,6 +277,9 @@ the server applied, even if it isn't one of the `PageSizeOptions`.
 <link rel="stylesheet" href="https://cdn.lineicons.com/5.0/lineicons.css" />
 <script src="_content/Maviray.Blazor.Components.Material/js/maviJsInterop.js"></script>
 ```
+
+The pager's next-page icon, `lni-chevron-right`, is in LineIcons Pro. The free LineIcons 5.0 stylesheet above doesn't
+have it, so there the button shows no arrow (its tooltip still works). Load a LineIcons Pro stylesheet to see it.
 
 Render the grid in an interactive render mode. The sample app (`src/Maviray.Blazor.Components.Pro.Grid.Sample`) shows:
 
