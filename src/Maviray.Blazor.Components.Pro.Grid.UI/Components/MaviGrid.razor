@@ -188,8 +188,8 @@
                             </span>
                             <span class="@view.PagerTextCss">@_page.FirstRowNumber–@_page.LastRowNumber of @_page.TotalRows</span>
                             <span data-page-next>
-                                @* LineIcons 5 has no lni-chevron-right: the left chevron, mirrored, matches the previous-page button. *@
-                                <MaviButtonIcon Icon="lni lni-chevron-left lni-flip-x" ElementVariant="ElementVariant.Text" ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Small" Disabled="@(_pageNumber >= _page.TotalPages)" OnClick="NextPageAsync" Title="@Parameters.GoToNextPageText" />
+                                @* lni-chevron-right is in LineIcons Pro; the free LineIcons 5.0 set has no such glyph. *@
+                                <MaviButtonIcon Icon="lni lni-chevron-right" ElementVariant="ElementVariant.Text" ThemeColorScheme="ThemeColorScheme.Default" ElementSize="ElementSize.Small" Disabled="@(_pageNumber >= _page.TotalPages)" OnClick="NextPageAsync" Title="@Parameters.GoToNextPageText" />
                             </span>
                         </div>
                     </div>
