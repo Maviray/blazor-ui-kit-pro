@@ -108,7 +108,9 @@ Pass the cancellation token through. The grid cancels it when a newer fetch star
 
 **Column widths.** The grid fills its parent's width. Columns keep their width (up to 200px, more if the content needs
 it) unless they stretch. With no stretching column visible, the actions column takes the free width, so the ⋯ menu
-sits at the right edge. `MaviGridParameters.StretchColumns` chooses the stretching columns for one grid instead.
+sits at the right edge. `MaviGridParameters.StretchColumns` chooses the stretching columns for one grid instead. The
+free width is what is left once every other column reaches 200px, so in a narrow grid a stretching column gets only the
+room its content needs.
 
 **Sorting and filtering.** A column is sortable and filterable when it resolves to a data item path: either a member
 with the same name on the entity, or an entry in the `GridPropertyPathMap`. The factory accepts only these column keys;

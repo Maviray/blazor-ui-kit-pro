@@ -136,7 +136,8 @@ Every parameter, method, option, attribute and type, with defaults: `references/
 | totals stale after your own edits | call `RefreshAsync()`: page clicks reuse the known total |
 | grid shows "Data could not be loaded" | `FetchData` threw; handle `OnFetchError`, check the log |
 | `OptionsValidationException` at startup | `MaxPageSize` is below 1 |
-| long text cut off while the actions column is wide | mark that column `[GridStretch]` (or set `StretchColumns`): the actions column fills only when no column stretches |
+| columns bunched at the left of a wide card, spare width in the ⋯ column | mark the column that should take it `[GridStretch]` (or set `StretchColumns`); it grows once the other columns reach 200px |
+| `[GridStretch]` / `StretchColumns` seem to do nothing | the grid is too narrow: other columns get up to 200px first; or a `StretchColumns` key isn't a column key (ignored silently) |
 | grid doesn't fill its card, or should shrink | `FillWidth` (default `true`), not a `block` / `inline-block` class: those resolve by stylesheet order |
 | next-page button has no arrow | free LineIcons 5.0 has no `lni-chevron-right`; load LineIcons Pro |
 | `[GridStretch] weight must be at least 1` / `ArgumentOutOfRangeException` on `StretchColumns` | use weights ≥ 1 |

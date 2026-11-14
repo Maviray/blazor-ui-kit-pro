@@ -44,7 +44,7 @@ internal static class DocSnippets
             ...
             <link rel="stylesheet" href="_content/Maviray.Blazor.Components.Pro.Grid.UI/css/maviray.grid.min.css" />
             <link rel="stylesheet" href="_content/Maviray.Blazor.Components.Material/css/maviray.material.min.css" />
-            <link rel="stylesheet" href="https://cdn.lineicons.com/5.0/lineicons.css" />
+            <link rel="stylesheet" href="https://cdn.lineicons.com/5.0/lineicons.css" />   <!-- free set: no next-page arrow; LineIcons Pro has it -->
             <script src="_content/Maviray.Blazor.Components.Material/js/maviJsInterop.js"></script>
             <HeadOutlet @rendermode="InteractiveServer" />
         </head>

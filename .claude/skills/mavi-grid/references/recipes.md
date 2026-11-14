@@ -172,16 +172,19 @@ private readonly MaviGridParameters _parameters = new()
 ## Column widths
 
 The grid fills its parent's width. Columns keep their width (up to 200px, more if the content needs it) unless they
-stretch; with no stretching column visible, the actions column takes the free width (⋯ at the right edge).
+stretch; with no stretching column visible, the actions column takes the free width (⋯ at the right edge). The free
+width is what is left once every other column reaches 200px, so in a narrow grid a stretching column gets only the room
+its content needs.
 
 ```csharp
 // On the model: every grid of this model stretches these columns.
-[GridDataProperty(2)] [GridStretch]    public string? Name { get; set; }    // weight 1
-[GridDataProperty(4)] [GridStretch(2)] public string? Notes { get; set; }   // twice Name's share of the free width
-[GridNavProperty(5)]  [GridStretch]    public CustomerGridModel? Customer { get; set; }  // each nested column stretches
+[GridDataProperty(2)] [GridStretch]    public string Number { get; set; } = "";       // weight 1
+[GridDataProperty(8)] [GridStretch(2)] public string? Notes { get; set; }              // twice Number's share of the free width
+[GridNavProperty(9)]  [GridStretch]    public CustomerColumns? Customer { get; set; }  // each nested column stretches
 
 // Per grid: replaces the model's marks for this grid only ({} = none stretch, so the actions column fills).
-private readonly MaviGridParameters _parameters = new() { StretchColumns = new Dictionary<string, int> { ["Name"] = 2, ["Customer.City"] = 1 } };
+// Keys are column keys; an unknown key is ignored without an error.
+private readonly MaviGridParameters _parameters = new() { StretchColumns = new Dictionary<string, int> { ["Notes"] = 2, ["Customer.Name"] = 1 } };
 
 // Shrink to the columns instead of filling the width.
 private readonly MaviGridParameters _compact = new() { FillWidth = false };
