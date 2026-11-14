@@ -25,25 +25,39 @@
     @* Full width: stretching columns share only the width left once the other columns reach 200px. *@
     <div class="flex flex-col gap-6">
         <div>
-            <h3 class="@DocStyles.Label mb-2">One column stretches: Name</h3>
+            <h3 class="@DocStyles.Label mb-2">On the model: [GridStretch(2)] on Name, [GridStretch] on the related item (Details)</h3>
+            <div class="@DocStyles.Demo">
+                <MaviGrid TKey="int" FetchData="FetchStretchPageAsync" Parameters="_short" ConstructMainContextMenu="BuildMenuAsync" />
+            </div>
+        </div>
+
+        <DocCode Caption="DocStretchModel.cs" Code="@DocSnippets.ColumnWidthsModel" />
+
+        <div>
+            <h3 class="@DocStyles.Label mb-2">Per grid: StretchColumns = { Name: 1 }</h3>
             <div class="@DocStyles.Demo">
                 <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_nameStretches" ConstructMainContextMenu="BuildMenuAsync" />
             </div>
         </div>
         <div>
-            <h3 class="@DocStyles.Label mb-2">Weights: Name 2, Created 1</h3>
+            <h3 class="@DocStyles.Label mb-2">Per grid, with weights: StretchColumns = { Name: 2, Date: 1 }</h3>
             <div class="@DocStyles.Demo">
                 <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_weighted" ConstructMainContextMenu="BuildMenuAsync" />
             </div>
         </div>
+        <div>
+            <h3 class="@DocStyles.Label mb-2">FillWidth = false: the grid shrinks to its columns</h3>
+            <div class="@DocStyles.Demo">
+                <MaviGrid TKey="int" FetchData="FetchPageAsync" Parameters="_compact" ConstructMainContextMenu="BuildMenuAsync" />
+            </div>
+        </div>
     </div>
 
-    <DocCode Code="@DocSnippets.ColumnWidths" />
+    <DocCode Code="@DocSnippets.ColumnWidthsParameters" />
 
     <p class="@DocStyles.Body mt-4">
-        <code>StretchColumns</code> replaces the model's marks for one grid; an empty dictionary stretches no column.
-        To change it later, assign a new dictionary. <code>FillWidth = false</code> brings back a grid that shrinks to
-        its columns.
+        <code>StretchColumns</code> replaces the model's marks for one grid, so one model can serve a compact and a full
+        page. To change it later, assign a new dictionary.
     </p>
 </DocSection>
 
@@ -61,15 +75,26 @@
         NoDataAvailableTitle = "Nothing here yet"
     };
 
-    private readonly MaviGridParameters _nameStretches = new() { StretchColumns = new Dictionary<string, int> { ["Name"] = 1 } };
+    // The column-width demos show five rows each, to keep the section short.
+    private readonly MaviGridParameters _short = new() { PageSize = 5 };
 
-    private readonly MaviGridParameters _weighted = new() { StretchColumns = new Dictionary<string, int> { ["Name"] = 2, ["Date"] = 1 } };
+    private readonly MaviGridParameters _nameStretches = new() { PageSize = 5, StretchColumns = new Dictionary<string, int> { ["Name"] = 1 } };
+
+    private readonly MaviGridParameters _weighted = new() { PageSize = 5, StretchColumns = new Dictionary<string, int> { ["Name"] = 2, ["Date"] = 1 } };
+
+    private readonly MaviGridParameters _compact = new() { PageSize = 5, FillWidth = false };
 
     [Inject]
     private IGridDataFactory<DbSampleItemOne, DocItemModel, int> GridData { get; set; } = default!;
 
+    [Inject]
+    private IGridDataFactory<DbSampleItemOne, DocStretchModel, int> StretchGridData { get; set; } = default!;
+
     private Task<MaviGridCollection<int>> FetchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
         GridData.BuildPageAsync(query, cancellationToken: cancellationToken);
+
+    private Task<MaviGridCollection<int>> FetchStretchPageAsync(MaviGridQuery query, CancellationToken cancellationToken) =>
+        StretchGridData.BuildPageAsync(query, cancellationToken: cancellationToken);
 
     private static Task<IEnumerable<IMaviContextMenuItem>> BuildMenuAsync() =>
         Task.FromResult<IEnumerable<IMaviContextMenuItem>>([new MaviContextMenuItem { Key = "export", Title = "Export" }]);
