@@ -56,6 +56,19 @@ public class MaviGridPrerenderStateTests : MaviGridTestContext
     }
 
     [Fact]
+    public void RestoredPage_KeepsItsStretchingColumns()
+    {
+        var columns = GridPages.Stretched(("Name", 1));
+        var fetch = new RecordingFetch((q, _) => GridPages.PageWith(columns, q, 1, 1));
+        Prerender(fetch);
+
+        var grid = StartInteractive(fetch);
+
+        Assert.Single(fetch.Queries);
+        Assert.Contains("minmax(min-content, 1fr) minmax(min-content, 200px) min-content", grid.Find("[data-grid-body]").GetAttribute("style"));
+    }
+
+    [Fact]
     public void WithoutAKey_TheInteractiveGridFetchesAgain()
     {
         var fetch = new RecordingFetch((q, _) => GridPages.WithCursors(q, 30));

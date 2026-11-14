@@ -44,7 +44,7 @@ internal static class DocSnippets
             ...
             <link rel="stylesheet" href="_content/Maviray.Blazor.Components.Pro.Grid.UI/css/maviray.grid.min.css" />
             <link rel="stylesheet" href="_content/Maviray.Blazor.Components.Material/css/maviray.material.min.css" />
-            <link rel="stylesheet" href="https://cdn.lineicons.com/5.0/lineicons.css" />
+            <link rel="stylesheet" href="https://cdn.lineicons.com/5.0/lineicons.css" />   <!-- free set: no next-page arrow; LineIcons Pro has it -->
             <script src="_content/Maviray.Blazor.Components.Material/js/maviJsInterop.js"></script>
             <HeadOutlet @rendermode="InteractiveServer" />
         </head>
@@ -260,6 +260,36 @@ internal static class DocSnippets
                 NoDataAvailableTitle = "Nothing here yet"
             };
         }
+        """;
+
+    public const string ColumnWidthsModel = """
+        public sealed class DocStretchModel : IGridCollectionModel<DbSampleItemOne, int>
+        {
+            [GridDataProperty(1)]
+            public int Id { get; set; }
+
+            [GridDataProperty(2, MaviGridColumnCellBehavior.Navigational)]
+            [GridStretch(2)]                                   // twice the share of a weight-1 column
+            public string? Name { get; set; }
+
+            [Display(Name = "Amount")]
+            [GridDataProperty(3)]
+            public int Integer { get; set; }                   // no mark: keeps its width
+
+            [GridNavProperty(4)]
+            [GridStretch]                                      // each nested column (Details) stretches, weight 1
+            public DocDetailsModel? DbSampleItemTwo { get; set; }
+            ...
+        }
+        """;
+
+    public const string ColumnWidthsParameters = """
+        // Per grid: replaces the model's marks for this grid only. An empty dictionary stretches no column.
+        private readonly MaviGridParameters _nameStretches = new() { StretchColumns = new Dictionary<string, int> { ["Name"] = 1 } };
+        private readonly MaviGridParameters _weighted = new() { StretchColumns = new Dictionary<string, int> { ["Name"] = 2, ["Date"] = 1 } };
+
+        // Shrinks to its columns instead of filling the width.
+        private readonly MaviGridParameters _compact = new() { FillWidth = false };
         """;
 
     // 9. Badges and formatting

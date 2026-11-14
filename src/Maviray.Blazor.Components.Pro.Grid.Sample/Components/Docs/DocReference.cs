@@ -53,6 +53,8 @@ internal static class DocReference
         new("Condensed", "bool", "false", "Tighter cells and smaller text."),
         new("MaxCellCharsToDisplay", "int", "0", "Cuts cell text to this many characters with \"...\" (0: no limit). The full text stays in the tooltip."),
         new("FetchWhilePrerendering", "bool", "true", "false: a placeholder while prerendering and one fetch once interactive (or keep true and set PrerenderedPageKey)."),
+        new("StretchColumns", "IReadOnlyDictionary<string, int>?", "null", "Column key to weight: these columns share the free width and replace the model's [GridStretch] marks. Empty: none stretch. Assign a new dictionary to change it."),
+        new("FillWidth", "bool", "true", "The grid fills its parent's width. false: it shrinks to its columns."),
         new("ContentMenuTitle", "string", "\"Actions\"", "Tooltip of the ⋯ menu buttons."),
         new("NoDataAvailableTitle", "string", "\"No data available to display\"", "Text of the empty state."),
         new("AccessDeniedTitle", "string?", "\"You do not have access to this data\"", "Text of the access-denied state when the policy gives no message."),
@@ -102,7 +104,8 @@ internal static class DocReference
         new("[GridNestedProperty(title)]", "property of the related model", "", "A column from the related model, with its header text."),
         new("[GridBooleanDisplayValues(trueText, falseText)]", "bool property", "True / False", "Text of a boolean cell; also what the filter matches."),
         new("[GridDateTimeFormat(format)]", "date or time property", "yyyy-MM-dd HH:mm:ss", "Format of a date or time cell (invariant culture)."),
-        new("[GridAdvancedDisplay]", "property", "", "Shows the cell as a badge, coloured by GridFetchOptions.CellThemes.")
+        new("[GridAdvancedDisplay]", "property", "", "Shows the cell as a badge, coloured by GridFetchOptions.CellThemes."),
+        new("[GridStretch(weight = 1)]", "column property, navigation property", "", "The column takes a share of the free width, in proportion to its weight. On a navigation property, it applies to its nested columns. With no stretching column, the actions column takes the free width.")
     ];
 
     public static readonly DocRow[] QueryMembers =
